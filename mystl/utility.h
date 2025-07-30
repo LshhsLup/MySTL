@@ -1,6 +1,10 @@
 #ifndef __MYSTL_UTILITY_H__
 #define __MYSTL_UTILITY_H__
 
+#include <utility>
+#include <type_traits>
+std::pair<int,int> p1;
+
 namespace mystl {
 
     //===========================================================
@@ -17,7 +21,10 @@ namespace mystl {
         T2 second;
 
         // constructors
-        
+        template<U1 = T1, U2 = T2, 
+                typename = std::enable_if_t<std::is_default_constructible<U1>::value &&
+                std::is_default_constructible<U2>::value>::type>
+        constexpr pair() : first(), second() {}
     };
 }
 
