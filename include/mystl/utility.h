@@ -45,7 +45,24 @@ struct pair {
 
   // value constructors
   // T1 和 T2 都能拷贝构造这个构造函数才会参与重载决议
-  pair(const T1& x, const T2& y);
+  //
+  template <
+      class U1 = T1, class U2 = T2,
+      typename std::enable_if<std::is_copy_constructible<U1>::value &&
+                                  std::is_copy_constructible<U2>::value &&
+                                  std::is_convertible<const U1&, U1>::value &&
+                                  std::is_convertible<const U2&, U2>::value,
+                              int>::type = 0>
+  constexpr pair(const T1& x, const T2& y) : T1(x), T2(y) {}
+
+  template <class U1 = T1, class U2 = T2,
+            typename = typename std::enable_if<
+                std::is_copy_constructible<U1>::value &&
+                    std::is_copy_constructible<U2>::value &&
+                    (!std::is_convertible<const U1&, U1>::value ||
+                     !std::is_convertible<const U2&, U2>::value),
+                char>::type>
+  explicit constexpr pair(const T1& x, const T2& y) : T1(x), T2(y) {}
 
   ~pair() noexcept = default;
 };
