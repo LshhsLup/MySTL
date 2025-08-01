@@ -1,0 +1,51 @@
+# .gitignore
+
+# -----------------
+# 构建产物
+# -----------------
+build/
+build-*/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.out
+
+# -----------------
+# CMake 相关文件
+# -----------------
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# -----------------
+# IDE 和编辑器配置文件
+# -----------------
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# -----------------
+# 操作系统生成的文件
+# -----------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# -----------------
+# 日志和临时文件
+# -----------------
+*.log
+*.tmp
