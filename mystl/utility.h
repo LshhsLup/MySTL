@@ -21,9 +21,9 @@ namespace mystl {
         T2 second;
 
         // constructors
-        template<U1 = T1, U2 = T2, 
+        template<class U1 = T1, class U2 = T2, 
                 typename = std::enable_if_t<std::is_default_constructible<U1>::value &&
-                std::is_default_constructible<U2>::value>::type>
+                std::is_default_constructible<U2>::value>>
         constexpr pair() : first(), second() {}
     };
 }
