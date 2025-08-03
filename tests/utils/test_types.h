@@ -24,7 +24,7 @@ struct SMF_Counter {
 // ============== A. 显式定义/删除的类型 =============
 // =================================================================================
 
-// 1. "完美类型" - 拥有所有特殊成员函数，且行为正常
+//  "完美类型" - 拥有所有特殊成员函数，且行为正常
 class Perfect {
  public:
   static inline SMF_Counter counter;
@@ -60,7 +60,7 @@ class Perfect {
   int data;
 };
 
-// 2. "仅可移动类型" - 删除了拷贝操作 (e.g., std::unique_ptr)
+//  "仅可移动类型" - 删除了拷贝操作 (e.g., std::unique_ptr)
 class MoveOnly {
  public:
   static inline SMF_Counter counter;
@@ -94,7 +94,7 @@ class MoveOnly {
   int* data;
 };
 
-// 3. "仅可拷贝类型" - 无移动操作，移动请求会退化为拷贝
+//  "仅可拷贝类型" - 无移动操作，移动请求会退化为拷贝
 class CopyOnly {
  public:
   static inline SMF_Counter counter;
@@ -120,7 +120,7 @@ class CopyOnly {
   int data;
 };
 
-// 4. "不可移动也不可拷贝类型" (e.g., std::mutex)
+//  "不可移动也不可拷贝类型" (e.g., std::mutex)
 class NonMovableNonCopyable {
  public:
   NonMovableNonCopyable() = default;
@@ -131,7 +131,7 @@ class NonMovableNonCopyable {
   ~NonMovableNonCopyable() = default;
 };
 
-// 5. "无默认构造函数"
+//  "无默认构造函数"
 class NoDefault {
  public:
   static inline SMF_Counter counter;
@@ -153,7 +153,7 @@ class NoDefault {
   int data;
 };
 
-// 6. "显式默认构造函数"
+// "显式默认构造函数"
 class ExplicitDefault {
  public:
   static inline SMF_Counter counter;
@@ -169,7 +169,24 @@ class ExplicitDefault {
   ~ExplicitDefault() { counter.deconstructor++; }
 };
 
-// 7. "会抛异常的拷贝构造函数"
+// "显示拷贝构造函数"
+class ExplicitCopy {
+ public:
+  static inline SMF_Counter counter;
+  ExplicitCopy() = default;
+  ExplicitCopy(int v) : data(v) { counter.value_constructor++; }
+  explicit ExplicitCopy(const ExplicitCopy& other) {
+    data = other.data;
+    counter.copy_constructor++;
+  }
+
+  int value() const { return data; }
+
+ private:
+  int data;
+};
+
+//  "会抛异常的拷贝构造函数"
 class ThrowOnCopy {
  public:
   static inline bool throw_on_copy_constructor = false;
@@ -187,7 +204,7 @@ class ThrowOnCopy {
   ThrowOnCopy& operator=(ThrowOnCopy&&) noexcept { return *this; }
 };
 
-// 8. "非 noexcept 的移动操作"
+//  "非 noexcept 的移动操作"
 class NotNoexceptMove {
  public:
   NotNoexceptMove() = default;
@@ -205,13 +222,13 @@ class NotNoexceptMove {
 // ============              B. 编译器隐式生成/删除的类型                    ===========
 // =================================================================================
 
-// 9. "聚合体" - 简单、无用户声明的构造函数，所有成员公开
+//  "聚合体" - 简单、无用户声明的构造函数，所有成员公开
 struct Aggregate {
   int i;
   double d;
 };  // 编译器生成所有 SMF。可聚合初始化 T t = {1, 3.14};
 
-// 10. "Rule of Zero 类" - 带有私有成员和构造函数
+// 1 "Rule of Zero 类" - 带有私有成员和构造函数
 class RuleOfZero {
  public:
   RuleOfZero(int v = 0) : data(v) {}  // 提供一个默认构造
@@ -221,7 +238,7 @@ class RuleOfZero {
   int data;
 };  // 编译器生成: 拷贝/移动构造, 拷贝/移动赋值, 析构
 
-// 11. "Rule of Three: 用户定义的析构函数" - 抑制移动操作生成
+//  "Rule of Three: 用户定义的析构函数" - 抑制移动操作生成
 class CustomDestructor {
  public:
   CustomDestructor(int v = 0) : data(new int(v)) {}
@@ -231,7 +248,7 @@ class CustomDestructor {
   int* data;
 };
 
-// 12. "Rule of Five: 用户定义的拷贝操作" - 抑制移动操作生成
+//  "Rule of Five: 用户定义的拷贝操作" - 抑制移动操作生成
 class CustomCopy {
  public:
   CustomCopy(int v = 0) : data(v) {}
@@ -245,27 +262,27 @@ class CustomCopy {
   int data;
 };
 
-// 13. "带有 const 成员" - 隐式删除赋值操作
+// "带有 const 成员" - 隐式删除赋值操作
 class ConstMember {
  public:
   const int data;
   ConstMember(int v = 0) : data(v) {}
 };  // 编译器删除: 拷贝/移动赋值
 
-// 14. "带有引用成员" - 隐式删除默认构造和赋值操作
+// "带有引用成员" - 隐式删除默认构造和赋值操作
 class ReferenceMember {
  public:
   int& ref;
   ReferenceMember(int& r) : ref(r) {}
 };  // 编译器删除: 默认构造, 拷贝/移动赋值
 
-// 15. "带有 non-trivial 成员" - 属性“继承”自成员
+// "带有 non-trivial 成员" - 属性“继承”自成员
 class NonTrivialMember {
  public:
   std::string s;
 };  // 所有 SMF 都会被编译器生成，但它们会调用 std::string 对应的 SMF
 
-// 16. "带有不可移动成员" - 移动回退到拷贝
+// "带有不可移动成员" - 移动回退到拷贝
 class MemberWithNoMove {
  public:
   CopyOnly member;
