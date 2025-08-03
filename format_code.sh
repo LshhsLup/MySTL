@@ -13,7 +13,8 @@ FILE_EXTENSIONS='cpp\|hpp\|h\|c'
 
 # 排除的目录列表，用 | 分隔（用于正则表达式）。
 # 这个例子排除了 '3rdparty' 目录。如果你有其他需要排除的目录，可以添加到这里。
-EXCLUDE_DIRS='3rdparty'
+EXCLUDE_DIR1='3rdparty'
+EXCLUDE_DIR2='build'
 
 # --- 脚本逻辑 ---
 
@@ -36,7 +37,8 @@ fi
 # -print0 使用空字符分隔文件名，以便处理带空格的文件名
 find . -type f \
     -regex ".*\\.\($FILE_EXTENSIONS\)" \
-    -not -path "./$EXCLUDE_DIRS/*" \
+    -not -path "./$EXCLUDE_DIR1/*" \
+    -not -path "./$EXCLUDE_DIR2/*" \
     -print0 | while IFS= read -r -d $'\0' file; do
     echo "格式化: $file"
     "$CLANG_FORMAT_BIN" -style=file -i "$file"
