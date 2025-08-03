@@ -194,7 +194,8 @@ class NotNoexceptMove {
   NotNoexceptMove(const NotNoexceptMove&) = default;
   NotNoexceptMove& operator=(const NotNoexceptMove&) = default;
 
-  NotNoexceptMove(NotNoexceptMove&&) { /* might throw */ }
+  NotNoexceptMove(NotNoexceptMove&&) { /* might throw */
+  }
   NotNoexceptMove& operator=(NotNoexceptMove&&) { /* might throw */
     return *this;
   }
