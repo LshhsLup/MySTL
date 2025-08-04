@@ -14,22 +14,23 @@ namespace mystl {
 // 设计思路： 继承一个包含所有元素类型的、独立的基类聚合
 // 基类就是一个带索引和类型的节点
 
-// 空基类优化
-template <std::size_t I, class T,
-          bool = std::is_empty<T>::value && !std::is_final<T>::value>
-struct TupleLeaf;
-
 template <std::size_t I, class T>
-struct TupleLeaf<I, T, false> {
-  T value;
+struct TupleLeaf {
+  T value{};
   constexpr TupleLeaf() = default;
 
   template <class U>
   constexpr TupleLeaf(U&& x) : value(std::forward<U>(x)) {}
-};
 
-template <std::size_t I, class T>
-struct TupleLeaf<I, T, true> : public T {};
+  // get(), 方便特化 tuple 的 get
+  constexpr T& get() & noexcept { return value; }
+
+  constexpr const T& get() const& noexcept { return value; }
+
+  constexpr T&& get() && noexcept { return std::move(value); }
+
+  constexpr const T&& get() const&& noexcept { return std::move(value); }
+};
 
 template <class IndexSeqence, class... Types>
 struct TupleImpl;
@@ -79,6 +80,139 @@ class tuple
   tuple(tuple&& other) = default;
 };
 
+// 获取 index 对应的类型
+template <std::size_t Index, class... Types>
+struct NthType;
+
+template <class Head, class... Tail>
+struct NthType<0, Head, Tail...> {
+  using type = Head;
+};
+
+template <std::size_t Index, class Head, class... Tail>
+struct NthType<Index, Head, Tail...> {
+  using type = typename NthType<Index - 1, Tail...>::type;
+};
+
+template <std::size_t Index, class... Types>
+using NthType_t = typename NthType<Index, Types...>::type;
+
+// 根据类型获取 Types 中对应的索引
+template <class T, class... Types>
+struct TypeIndex;
+
+template <class T, class... Tail>
+struct TypeIndex<T, T, Tail...> {
+  static constexpr std::size_t value = 0;
+};
+
+template <class T, class Head, class... Tail>
+struct TypeIndex<T, Head, Tail...> {
+  static constexpr std::size_t value = TypeIndex<T, Tail...>::value + 1;
+};
+
+template <class T, class... Types>
+constexpr inline std::size_t TypeIndex_v = TypeIndex<T, Types...>::value;
+
+// 计算 Types 中 T 出现的次数
+template <class T, class... Types>
+struct CountType;
+
+template <class T>
+struct CountType<T> {
+  static constexpr std::size_t value = 0;
+};
+
+template <class T, class Head, class... Tail>
+struct CountType<T, Head, Tail...> {
+  static constexpr std::size_t value =
+      (std::is_same<T, Head>::value ? 1 : 0) + CountType<T, Tail...>::value;
+};
+
+template <class T, class... Types>
+constexpr inline std::size_t CountType_v = CountType<T, Types...>::value;
+
+template <std::size_t I, class... Types>
+typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
+    mystl::tuple<Types...>& t) noexcept {
+  using LeafType =
+      TupleLeaf<I,
+                typename std::tuple_element<I, mystl::tuple<Types...>>::type>;
+  return static_cast<LeafType&>(t).get();
+}
+
+template <std::size_t I, class... Types>
+typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
+    mystl::tuple<Types...>&& t) noexcept {
+  using LeafType =
+      TupleLeaf<I,
+                typename std::tuple_element<I, mystl::tuple<Types...>>::type>;
+  return static_cast<LeafType&&>(t).get();
+}
+
+template <std::size_t I, class... Types>
+const typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
+    const mystl::tuple<Types...>& t) noexcept {
+  using LeafType =
+      TupleLeaf<I,
+                typename std::tuple_element<I, mystl::tuple<Types...>>::type>;
+  return static_cast<const LeafType&>(t).get();
+}
+
+template <std::size_t I, class... Types>
+const typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
+    const mystl::tuple<Types...>&& t) noexcept {
+  using LeafType =
+      TupleLeaf<I,
+                typename std::tuple_element<I, mystl::tuple<Types...>>::type>;
+  return static_cast<const LeafType&&>(t).get();
+}
+
+template <class T, class... Types>
+constexpr T& get(mystl::tuple<Types...>& t) noexcept {
+  static_assert(CountType_v<T, Types...> == 1,
+                "get<T>(tuple): T must occur exactly once in the tuple");
+  constexpr std::size_t index = TypeIndex_v<T, Types...>;
+  using LeafType = TupleLeaf<
+      index, typename std::tuple_element<index, mystl::tuple<Types...>>::type>;
+  return static_cast<LeafType&>(t).get();
+}
+
+template <class T, class... Types>
+constexpr T&& get(mystl::tuple<Types...>&& t) noexcept {
+  static_assert(CountType_v<T, Types...> == 1,
+                "get<T>(tuple): T must occur exactly once in the tuple");
+  constexpr std::size_t index = TypeIndex_v<T, Types...>;
+  using LeafType = TupleLeaf<
+      index, typename std::tuple_element<index, mystl::tuple<Types...>>::type>;
+  return static_cast<LeafType&&>(t).get();
+}
+
+template <class T, class... Types>
+constexpr const T& get(const mystl::tuple<Types...>& t) noexcept {
+  static_assert(CountType_v<T, Types...> == 1,
+                "get<T>(tuple): T must occur exactly once in the tuple");
+  constexpr std::size_t index = TypeIndex_v<T, Types...>;
+  using LeafType = TupleLeaf<
+      index, typename std::tuple_element<index, mystl::tuple<Types...>>::type>;
+  return static_cast<const LeafType&>(t).get();
+}
+
+template <class T, class... Types>
+constexpr const T&& get(const mystl::tuple<Types...>&& t) noexcept {
+  static_assert(CountType_v<T, Types...> == 1,
+                "get<T>(tuple): T must occur exactly once in the tuple");
+  constexpr std::size_t index = TypeIndex_v<T, Types...>;
+  using LeafType = TupleLeaf<
+      index, typename std::tuple_element<index, mystl::tuple<Types...>>::type>;
+  return static_cast<const LeafType&&>(t).get();
+}
 }  // namespace mystl
 
+namespace std {
+template <std::size_t I, class... Types>
+struct tuple_element<I, mystl::tuple<Types...>> {
+  using type = mystl::NthType_t<I, Types...>;
+};
+}  // namespace std
 #endif
