@@ -159,8 +159,8 @@ struct pair {
                 std::is_move_assignable<U1>::value &&
                 std::is_move_assignable<U2>::value>::type>
   pair& operator=(pair&& other) noexcept(
-      std::is_nothrow_move_assignable<U1>::value &&
-      std::is_nothrow_move_assignable<U2>::value) {
+      std::is_nothrow_move_assignable<U1>::value&&
+          std::is_nothrow_move_assignable<U2>::value) {
     first = std::forward<first_type>(other.first);
     second = std::forward<second_type>(other.second);
     return *this;
