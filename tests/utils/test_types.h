@@ -216,14 +216,12 @@ class NotNoexceptMove {
   NotNoexceptMove(const NotNoexceptMove&) = default;
   NotNoexceptMove& operator=(const NotNoexceptMove&) = default;
 
-  NotNoexceptMove(NotNoexceptMove&&) { /* might throw */ }
-  NotNoexceptMove& operator=(NotNoexceptMove&&) { /* might throw */
-    return *this;
-  }
+  NotNoexceptMove(NotNoexceptMove&&) {}
+  NotNoexceptMove& operator=(NotNoexceptMove&&) { return *this; }
 };
 
 // =================================================================================
-// ============              B. 编译器隐式生成/删除的类型                    ===========
+// ============              B. 编译器隐式生成/删除的类型                  ===========
 // =================================================================================
 
 //  "聚合体" - 简单、无用户声明的构造函数，所有成员公开
