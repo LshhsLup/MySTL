@@ -6,8 +6,6 @@
 #include <utility>
 #include "mystl/type_traits.h"
 
-std::pair<int, int> p1;
-
 namespace mystl {
 
 //===========================================================
@@ -159,8 +157,8 @@ struct pair {
                 std::is_move_assignable<U1>::value &&
                 std::is_move_assignable<U2>::value>::type>
   pair& operator=(pair&& other) noexcept(
-      std::is_nothrow_move_assignable<U1>::value&&
-          std::is_nothrow_move_assignable<U2>::value) {
+      std::is_nothrow_move_assignable<U1>::value &&
+      std::is_nothrow_move_assignable<U2>::value) {
     first = std::forward<first_type>(other.first);
     second = std::forward<second_type>(other.second);
     return *this;
@@ -289,7 +287,7 @@ struct pair_get<1> {
 
   template <class T1, class T2>
   static constexpr T2&& move_get(pair<T1, T2>&& p) noexcept {
-    return std::forward<T1>(p.second);
+    return std::forward<T2>(p.second);
   }
 
   template <class T1, class T2>
@@ -299,7 +297,7 @@ struct pair_get<1> {
 
   template <class T1, class T2>
   static constexpr const T2&& const_move_get(const pair<T1, T2>&& p) noexcept {
-    return std::forward<T1>(p.second);
+    return std::forward<T2>(p.second);
   }
 };
 
@@ -318,13 +316,14 @@ constexpr const typename std::tuple_element<I, pair<T1, T2>>::type& get(
 template <std::size_t I, class T1, class T2>
 constexpr typename std::tuple_element<I, pair<T1, T2>>::type&& get(
     pair<T1, T2>&& p) noexcept {
-  return pair_get<I>::move_get(p);
+  // p 的类型是右值引用，但是 p 有名字，所以它本身是左值，需要重新转换为右值
+  return pair_get<I>::move_get(std::move(p));
 }
 
 template <std::size_t I, class T1, class T2>
 constexpr const typename std::tuple_element<I, pair<T1, T2>>::type&& get(
     const pair<T1, T2>&& p) noexcept {
-  return pair_get<I>::const_move_get(p);
+  return pair_get<I>::const_move_get(std::move(p));
 }
 
 template <class T1, class T2>
@@ -370,6 +369,8 @@ constexpr const T1&& get(const pair<T2, T1>&& p) noexcept {
 }  // namespace mystl
 
 namespace std {
+
+// specialize tuple_element
 template <std::size_t I, class T1, class T2>
 struct tuple_element<I, mystl::pair<T1, T2>> {
   static_assert(I < 2, "mystl::pair has only two elements!!");
@@ -384,5 +385,10 @@ template <class T1, class T2>
 struct tuple_element<1, mystl::pair<T1, T2>> {
   using type = T2;
 };
+
+// specialize tuple_size
+template <class T1, class T2>
+struct tuple_size<mystl::pair<T1, T2>>
+    : std::integral_constant<std::size_t, 2> {};
 }  // namespace std
 #endif
