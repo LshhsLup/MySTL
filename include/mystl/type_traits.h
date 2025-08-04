@@ -46,8 +46,8 @@ struct is_all_true<Trait> : std::true_type {};
 // 特化，递归地判断某个类型是否满足 Trait
 template <template <class> class Trait, class Head, class... Tail>
 struct is_all_true<Trait, Head, Tail...>
-    : typename std::conditional<Trait<Head>::value, is_all_true<Trait, Tail...>,
-                                std::false_type>::type {};
+    : std::conditional<Trait<Head>::value, is_all_true<Trait, Tail...>,
+                       std::false_type>::type {};
 
 template <template <class> class Trait, class... Types>
 inline constexpr bool is_all_true_v = is_all_true<Trait, Types...>::value;
