@@ -1,6 +1,7 @@
 #ifndef __MYSTL_UTILITY_H__
 #define __MYSTL_UTILITY_H__
 
+#include <tuple>  // for tuple_element
 #include <type_traits>
 #include <utility>
 #include "mystl/type_traits.h"
@@ -158,8 +159,8 @@ struct pair {
                 std::is_move_assignable<U1>::value &&
                 std::is_move_assignable<U2>::value>::type>
   pair& operator=(pair&& other) noexcept(
-      std::is_nothrow_move_assignable<U1>::value&&
-          std::is_nothrow_move_assignable<U2>::value) {
+      std::is_nothrow_move_assignable<U1>::value &&
+      std::is_nothrow_move_assignable<U2>::value) {
     first = std::forward<first_type>(other.first);
     second = std::forward<second_type>(other.second);
     return *this;
@@ -212,41 +213,176 @@ make_pair(T1&& x, T2&& y) {
 }
 
 template <class T1, class T2, class U1, class U2>
-constexpr bool operator==(const std::pair<T1, T2>& lhs,
-                          const std::pair<U1, U2>& rhs) {
+constexpr bool operator==(const mystl::pair<T1, T2>& lhs,
+                          const mystl::pair<U1, U2>& rhs) {
   return (lhs.first == rhs.first) && (lhs.second == rhs.second);
 }
 
 template <class T1, class T2, class U1, class U2>
-constexpr bool operator!=(const std::pair<T1, T2>& lhs,
-                          const std::pair<U1, U2>& rhs) {
+constexpr bool operator!=(const mystl::pair<T1, T2>& lhs,
+                          const mystl::pair<U1, U2>& rhs) {
   return !(lhs == rhs);
 }
 
 template <class T1, class T2, class U1, class U2>
-constexpr bool operator<(const std::pair<T1, T2>& lhs,
-                         const std::pair<U1, U2>& rhs) {
-  return lhs.first < rhs.second ||
+constexpr bool operator<(const mystl::pair<T1, T2>& lhs,
+                         const mystl::pair<U1, U2>& rhs) {
+  return lhs.first < rhs.first ||
          (!(rhs.first < lhs.first) && (lhs.second < rhs.second));
 }
 
 template <class T1, class T2, class U1, class U2>
-constexpr bool operator<=(const std::pair<T1, T2>& lhs,
-                          const std::pair<U1, U2>& rhs) {
+constexpr bool operator<=(const mystl::pair<T1, T2>& lhs,
+                          const mystl::pair<U1, U2>& rhs) {
   return !(rhs < lhs);
 }
 
 template <class T1, class T2, class U1, class U2>
-constexpr bool operator>(const std::pair<T1, T2>& lhs,
-                         const std::pair<U1, U2>& rhs) {
+constexpr bool operator>(const mystl::pair<T1, T2>& lhs,
+                         const mystl::pair<U1, U2>& rhs) {
   return rhs < lhs;
 }
 
 template <class T1, class T2, class U1, class U2>
-constexpr bool operator>=(const std::pair<T1, T2>& lhs,
-                          const std::pair<U1, U2>& rhs) {
+constexpr bool operator>=(const mystl::pair<T1, T2>& lhs,
+                          const mystl::pair<U1, U2>& rhs) {
   return !(lhs < rhs);
 }
+
+template <class T1, class T2>
+void swap(pair<T1, T2>& x, pair<T1, T2>& y) noexcept(noexcept(x.swap(y))) {
+  x.swap(y);
+}
+
+template <std::size_t I>
+struct pair_get;
+
+template <>
+struct pair_get<0> {
+  template <class T1, class T2>
+  static constexpr T1& get(pair<T1, T2>& p) noexcept {
+    return p.first;
+  }
+
+  template <class T1, class T2>
+  static constexpr T1&& move_get(pair<T1, T2>&& p) noexcept {
+    return std::forward<T1>(p.first);
+  }
+
+  template <class T1, class T2>
+  static constexpr const T1& const_get(const pair<T1, T2>& p) noexcept {
+    return p.first;
+  }
+
+  template <class T1, class T2>
+  static constexpr const T1&& const_move_get(const pair<T1, T2>&& p) noexcept {
+    return std::forward<T1>(p.first);
+  }
+};
+
+template <>
+struct pair_get<1> {
+  template <class T1, class T2>
+  static constexpr T2& get(pair<T1, T2>& p) noexcept {
+    return p.second;
+  }
+
+  template <class T1, class T2>
+  static constexpr T2&& move_get(pair<T1, T2>&& p) noexcept {
+    return std::forward<T1>(p.second);
+  }
+
+  template <class T1, class T2>
+  static constexpr const T2& const_get(const pair<T1, T2>& p) noexcept {
+    return p.second;
+  }
+
+  template <class T1, class T2>
+  static constexpr const T2&& const_move_get(const pair<T1, T2>&& p) noexcept {
+    return std::forward<T1>(p.second);
+  }
+};
+
+template <std::size_t I, class T1, class T2>
+constexpr typename std::tuple_element<I, pair<T1, T2>>::type& get(
+    pair<T1, T2>& p) noexcept {
+  return pair_get<I>::get(p);
+}
+
+template <std::size_t I, class T1, class T2>
+constexpr const typename std::tuple_element<I, pair<T1, T2>>::type& get(
+    const pair<T1, T2>& p) noexcept {
+  return pair_get<I>::const_get(p);
+}
+
+template <std::size_t I, class T1, class T2>
+constexpr typename std::tuple_element<I, pair<T1, T2>>::type&& get(
+    pair<T1, T2>&& p) noexcept {
+  return pair_get<I>::move_get(p);
+}
+
+template <std::size_t I, class T1, class T2>
+constexpr const typename std::tuple_element<I, pair<T1, T2>>::type&& get(
+    const pair<T1, T2>&& p) noexcept {
+  return pair_get<I>::const_move_get(p);
+}
+
+template <class T1, class T2>
+constexpr T1& get(pair<T1, T2>& p) noexcept {
+  return p.first;
+}
+
+template <class T1, class T2>
+constexpr const T1& get(const pair<T1, T2>& p) noexcept {
+  return p.first;
+}
+
+template <class T1, class T2>
+constexpr T1&& get(pair<T1, T2>&& p) noexcept {
+  return std::move(p.first);
+}
+
+template <class T1, class T2>
+constexpr const T1&& get(const pair<T1, T2>&& p) noexcept {
+  return std::move(p.first);
+}
+
+template <class T1, class T2>
+constexpr T1& get(pair<T2, T1>& p) noexcept {
+  return p.second;
+}
+
+template <class T1, class T2>
+constexpr const T1& get(const pair<T2, T1>& p) noexcept {
+  return p.second;
+}
+
+template <class T1, class T2>
+constexpr T1&& get(pair<T2, T1>&& p) noexcept {
+  return std::move(p.second);
+}
+
+template <class T1, class T2>
+constexpr const T1&& get(const pair<T2, T1>&& p) noexcept {
+  return std::move(p.second);
+}
+
 }  // namespace mystl
 
+namespace std {
+template <std::size_t I, class T1, class T2>
+struct tuple_element<I, mystl::pair<T1, T2>> {
+  static_assert(I < 2, "mystl::pair has only two elements!!");
+};
+
+template <class T1, class T2>
+struct tuple_element<0, mystl::pair<T1, T2>> {
+  using type = T1;
+};
+
+template <class T1, class T2>
+struct tuple_element<1, mystl::pair<T1, T2>> {
+  using type = T2;
+};
+}  // namespace std
 #endif
