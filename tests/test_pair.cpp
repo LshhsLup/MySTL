@@ -7,7 +7,7 @@
 
 class PairTest : public ::testing::Test {
  protected:
-  // 你可以在这里定义所有测试用例都能访问的对象
+  // 可以在这里定义所有测试用例都能访问的对象
   // mystl::pair<int, std::string> p1{1, "hello"};
   // mystl::pair<int, std::string> p2{2, "world"};
 };
@@ -157,7 +157,273 @@ TEST(PairTest, ValueConstructor) {
   }
 }
 
-//
+TEST(PairTest, MemberTypesAndTraits) {
+  using MyPair = mystl::pair<int, std::string>;
+
+  // 检查内嵌类型定义是否正确
+  static_assert(std::is_same_v<MyPair::first_type, int>,
+                "first_type should be int");
+  static_assert(std::is_same_v<MyPair::second_type, std::string>,
+                "second_type should be std::string");
+
+  // 检查 tuple_size 和 tuple_element 特化是否生效
+  // 这是让 get<I> 工作的关键
+  static_assert(std::tuple_size<MyPair>::value == 2,
+                "tuple_size of pair should be 2");
+  static_assert(std::is_same_v<std::tuple_element_t<0, MyPair>, int>,
+                "tuple_element<0> should be int");
+  static_assert(std::is_same_v<std::tuple_element_t<1, MyPair>, std::string>,
+                "tuple_element<1> should be std::string");
+}
+
+TEST(PairTest, Constructors) {
+  // 1. 默认构造函数
+  {
+    mystl::pair<int, double> p;
+    EXPECT_EQ(p.first, 0);
+    EXPECT_EQ(p.second, 0.0);
+
+    // 测试包含复杂类型的默认构造
+    mystl::pair<std::string, std::vector<int>> p_complex;
+    EXPECT_EQ(p_complex.first, "");
+    EXPECT_TRUE(p_complex.second.empty());
+  }
+
+  // 2. 显式默认构造函数测试
+  {
+    // explicit 构造函数不能使用 {} 初始化
+    // mystl::pair<int, ExplicitDefaultCtor> p = {}; // 这应该无法编译通过
+    mystl::pair<int, ExplicitDefault> p;  // 这样可以
+    EXPECT_EQ(p.first, 0);
+    EXPECT_EQ(p.second.value(), 0);
+  }
+
+  // 3. 值初始化构造函数
+  {
+    mystl::pair<int, std::string> p(42, "hello");
+    EXPECT_EQ(p.first, 42);
+    EXPECT_EQ(p.second, "hello");
+  }
+
+  // 4. 隐式转换构造函数
+  {
+    // 从 int, const char* 转换到 long, std::string
+    mystl::pair<long, std::string> p = {123, "world"};
+    EXPECT_EQ(p.first, 123L);
+    EXPECT_EQ(p.second, "world");
+  }
+
+  // 5. 显式转换构造函数
+  {
+    mystl::pair<ExplicitCopy, int> p1(ExplicitCopy(5), 10);
+    // mystl::pair<ExplicitCopyCtor, int> p2 = p1; // 应该无法编译
+    mystl::pair<ExplicitCopy, int> p2(p1);  // 必须显式调用
+    EXPECT_EQ(p2.first.value(), 5);
+    EXPECT_EQ(p2.second, 10);
+  }
+
+  // 6. 拷贝构造函数
+  {
+    mystl::pair<int, std::string> p1(1, "one");
+    mystl::pair<int, std::string> p2(p1);
+    EXPECT_EQ(p1.first, p2.first);
+    EXPECT_EQ(p1.second, p2.second);
+  }
+
+  // 7. 移动构造函数 (使用 move-only 类型测试)
+  {
+    auto uptr = std::make_unique<int>(100);
+    mystl::pair<std::unique_ptr<int>, int> p1(std::move(uptr), 200);
+
+    EXPECT_NE(p1.first, nullptr);
+    EXPECT_EQ(*p1.first, 100);
+    EXPECT_EQ(p1.second, 200);
+
+    mystl::pair<std::unique_ptr<int>, int> p2(std::move(p1));
+
+    // 检查 p2 是否接管了资源
+    EXPECT_NE(p2.first, nullptr);
+    EXPECT_EQ(*p2.first, 100);
+    EXPECT_EQ(p2.second, 200);
+
+    // 检查 p1 的资源是否已被移走
+    EXPECT_EQ(p1.first, nullptr);
+  }
+
+  // 8. 拷贝转换构造函数
+  {
+    mystl::pair<int, const char*> p1(10, "ten");
+    mystl::pair<long, std::string> p2(p1);
+    EXPECT_EQ(p2.first, 10L);
+    EXPECT_EQ(p2.second, "ten");
+  }
+
+  // 9. 移动转换构造函数
+  {
+    mystl::pair<std::unique_ptr<int>, std::string> p1(std::make_unique<int>(10),
+                                                      "ten");
+    mystl::pair<std::unique_ptr<int>, std::string> p2(std::move(p1));
+
+    EXPECT_NE(p2.first, nullptr);
+    EXPECT_EQ(p2.second, "ten");
+    EXPECT_EQ(p1.first, nullptr);
+  }
+}
+
+TEST(PairTest, Assignment) {
+  // 1. 拷贝赋值
+  {
+    mystl::pair<int, std::string> p1(1, "one");
+    mystl::pair<int, std::string> p2;
+    p2 = p1;
+    EXPECT_EQ(p1.first, p2.first);
+    EXPECT_EQ(p1.second, p2.second);
+  }
+
+  // 2. 移动赋值 (使用 move-only 类型)
+  {
+    mystl::pair<std::unique_ptr<int>, int> p1(std::make_unique<int>(10), 1);
+    mystl::pair<std::unique_ptr<int>, int> p2;
+    p2 = std::move(p1);
+
+    EXPECT_NE(p2.first, nullptr);
+    EXPECT_EQ(*p2.first, 10);
+    EXPECT_EQ(p1.first, nullptr);
+  }
+
+  // 3. 拷贝转换赋值
+  {
+    mystl::pair<int, const char*> p1(99, "ninety-nine");
+    mystl::pair<long, std::string> p2;
+    p2 = p1;
+    EXPECT_EQ(p2.first, 99L);
+    EXPECT_EQ(p2.second, "ninety-nine");
+  }
+
+  // 4. 移动转换赋值
+  {
+    mystl::pair<std::unique_ptr<int>, std::string> p1(std::make_unique<int>(10),
+                                                      "ten");
+    mystl::pair<std::unique_ptr<int>, std::string> p2;
+    p2 = std::move(p1);
+
+    EXPECT_NE(p2.first, nullptr);
+    EXPECT_EQ(p2.second, "ten");
+    EXPECT_EQ(p1.first, nullptr);
+  }
+}
+
+TEST(PairTest, ComparisonOperators) {
+  mystl::pair<int, std::string> p1(1, "a");
+  mystl::pair<int, std::string> p2(1, "b");
+  mystl::pair<int, std::string> p3(2, "a");
+  mystl::pair<int, std::string> p1_copy(1, "a");
+
+  // operator==
+  EXPECT_TRUE(p1 == p1_copy);
+  EXPECT_FALSE(p1 == p2);
+  EXPECT_FALSE(p1 == p3);
+
+  // operator!=
+  EXPECT_FALSE(p1 != p1_copy);
+  EXPECT_TRUE(p1 != p2);
+
+  // operator< (Lexicographical comparison)
+  EXPECT_TRUE(p1 < p2);  // a < b
+  EXPECT_TRUE(p1 < p3);  // 1 < 2
+  EXPECT_FALSE(p3 < p1);
+
+  // operator<=
+  EXPECT_TRUE(p1 <= p1_copy);
+  EXPECT_TRUE(p1 <= p2);
+  EXPECT_FALSE(p3 <= p1);
+
+  // operator>
+  EXPECT_TRUE(p3 > p1);
+  EXPECT_TRUE(p2 > p1);
+  EXPECT_FALSE(p1 > p3);
+
+  // operator>=
+  EXPECT_TRUE(p1 >= p1_copy);
+  EXPECT_TRUE(p3 >= p1);
+  EXPECT_FALSE(p1 >= p3);
+}
+
+TEST(PairTest, Swap) {
+  mystl::pair<int, std::string> p1(1, "one");
+  mystl::pair<int, std::string> p2(2, "two");
+
+  // Member swap
+  p1.swap(p2);
+  EXPECT_EQ(p1.first, 2);
+  EXPECT_EQ(p1.second, "two");
+  EXPECT_EQ(p2.first, 1);
+  EXPECT_EQ(p2.second, "one");
+
+  // Non-member swap
+  mystl::swap(p1, p2);
+  EXPECT_EQ(p1.first, 1);
+  EXPECT_EQ(p1.second, "one");
+  EXPECT_EQ(p2.first, 2);
+  EXPECT_EQ(p2.second, "two");
+}
+
+TEST(PairTest, MakePair) {
+  int i = 10;
+  const char* c_str = "hello";
+
+  // 1. Basic usage
+  auto p1 = mystl::make_pair(i, c_str);
+  static_assert(std::is_same_v<decltype(p1), mystl::pair<int, const char*>>,
+                "make_pair type mismatch");
+  EXPECT_EQ(p1.first, 10);
+  EXPECT_STREQ(p1.second, "hello");
+
+  // 2. With std::ref to create a pair with a reference member
+  auto p2 = mystl::make_pair(std::ref(i), std::string("world"));
+  static_assert(std::is_same_v<decltype(p2), mystl::pair<int&, std::string>>,
+                "make_pair with ref failed");
+  EXPECT_EQ(p2.first, 10);
+
+  i = 20;                   // Modify original variable
+  EXPECT_EQ(p2.first, 20);  // Check if reference reflects the change
+}
+
+TEST(PairTest, Get) {
+  mystl::pair<int, std::string> p(42, "test");
+  const mystl::pair<double, char> const_p(3.14, 'c');
+
+  // 1. Indexed get (lvalue)
+  EXPECT_EQ(mystl::get<0>(p), 42);
+  EXPECT_EQ(mystl::get<1>(p), "test");
+
+  // Modify through get
+  mystl::get<0>(p) = 99;
+  EXPECT_EQ(p.first, 99);
+
+  // 2. Indexed get (const lvalue)
+  EXPECT_EQ(mystl::get<0>(const_p), 3.14);
+  EXPECT_EQ(mystl::get<1>(const_p), 'c');
+  // mystl::get<0>(const_p) = 1.0; // Should fail to compile
+
+  // 3. Indexed get (rvalue)
+  auto moved_str = mystl::get<1>(mystl::pair<int, std::string>(1, "move me"));
+  EXPECT_EQ(moved_str, "move me");
+
+  // 4. Typed get (lvalue)
+  EXPECT_EQ(mystl::get<int>(p), 99);
+  EXPECT_EQ(mystl::get<std::string>(p), "test");
+
+  // 5. Typed get (const lvalue)
+  EXPECT_EQ(mystl::get<double>(const_p), 3.14);
+  EXPECT_EQ(mystl::get<char>(const_p), 'c');
+
+  // Note: get by type will be ambiguous if types are the same
+  // mystl::pair<int, int> p_same(1,2);
+  // mystl::get<int>(p_same); // Should be a compilation error
+}
+
+// all tests cases below form cppreference example of pair
 TEST(PairTest, AssignOperator) {
   mystl::pair<int, std::vector<int>> p{1, {2}}, q{2, {5, 6}};
   p = q;
