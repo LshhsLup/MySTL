@@ -130,10 +130,13 @@ struct pair {
   //       typename = typename std::enable_if<std::is_copy_assignable<U1>::value &&
   //                                              std::is_copy_assignable<U2>::value,
   //                                          int>::type>
-  typename std::enable_if<std::is_copy_assignable<T1>::value &&
-                              std::is_copy_assignable<T2>::value,
-                          pair&>::type
-  operator=(const pair& other) {
+  // typename std::enable_if<std::is_copy_assignable<T1>::value &&
+  //                             std::is_copy_assignable<T2>::value,
+  //                         pair&>::type
+  pair& operator=(
+      typename std::conditional<std::is_copy_assignable<T1>::value &&
+                                    std::is_copy_assignable<T2>::value,
+                                const pair&, const nonsuch&>::type other) {
     first = other.first;
     second = other.second;
     return *this;
