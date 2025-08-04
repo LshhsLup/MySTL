@@ -167,6 +167,11 @@ class ExplicitDefault {
     return *this;
   }
   ~ExplicitDefault() { counter.deconstructor++; }
+
+  int value() const { return data; }
+
+ private:
+  int data{};
 };
 
 // "显示拷贝构造函数"
@@ -211,8 +216,7 @@ class NotNoexceptMove {
   NotNoexceptMove(const NotNoexceptMove&) = default;
   NotNoexceptMove& operator=(const NotNoexceptMove&) = default;
 
-  NotNoexceptMove(NotNoexceptMove&&) { /* might throw */
-  }
+  NotNoexceptMove(NotNoexceptMove&&) { /* might throw */ }
   NotNoexceptMove& operator=(NotNoexceptMove&&) { /* might throw */
     return *this;
   }
