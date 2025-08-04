@@ -24,6 +24,13 @@ struct is_implicitly_default_constructible_impl<
 template <class T>
 inline constexpr bool is_implicitly_default_constructible_v =
     is_implicitly_default_constructible_impl<T>::value;
+
+struct nonsuch {
+  nonsuch() = delete;
+  nonsuch(const nonsuch&) = delete;
+  nonsuch& operator=(const nonsuch&) = delete;
+  ~nonsuch() = delete;
+};
 }  // namespace mystl
 
 #endif
