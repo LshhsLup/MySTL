@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include "mystl/utility.h"
@@ -161,5 +162,90 @@ TEST(PairTest, AssignOperator) {
   mystl::pair<int, std::vector<int>> p{1, {2}}, q{2, {5, 6}};
   p = q;
   EXPECT_EQ(p.first, 2);
-  EXPECT_EQ(p.second.back(), 6);
+  std::vector<int> v1{5, 6};
+  EXPECT_EQ(p.second, v1);
+  mystl::pair<short, std::vector<int>> r{4, {7, 8, 9}};
+  p = r;
+  EXPECT_EQ(p.first, 4);
+  std::vector<int> v2{7, 8, 9};
+  EXPECT_EQ(p.second, v2);
+  p = mystl::pair<int, std::vector<int>>{3, {4}};
+  p = std::move(q);
+  EXPECT_EQ(p.first, 2);
+  EXPECT_EQ(p.second, v1);
+  EXPECT_EQ(q.first, 2);
+  std::vector<int> v3{};
+  EXPECT_EQ(q.second, v3);
+  p = mystl::pair<int, std::vector<int>>{5, {6}};
+  p = std::move(r);
+  EXPECT_EQ(p.first, 4);
+  EXPECT_EQ(p.second, v2);
+  EXPECT_EQ(r.first, 4);
+  EXPECT_EQ(r.second, v3);
+  // std::cout << "hello world\n";
+}
+
+TEST(PairTest, PairSwapAndGet) {
+  mystl::pair<int, std::string> p1(10, "test"), p2;
+  p2.swap(p1);
+  EXPECT_EQ(p2.first, 10);
+  EXPECT_EQ(p2.second, "test");
+  int i1 = 10, i2{};
+  std::string s1("test"), s2;
+  mystl::pair<int&, std::string&> r1(i1, s1), r2(i2, s2);
+  r2.swap(r1);
+  EXPECT_EQ(r2.first, 10);
+  EXPECT_EQ(r2.second, "test");
+
+  auto p3 = mystl::make_pair(10, 3.14);
+  auto p4 = mystl::pair(12, 1.23);
+  EXPECT_EQ(mystl::get<0>(p3), 10);
+  EXPECT_EQ(mystl::get<1>(p3), 3.14);
+  EXPECT_EQ(mystl::get<0>(p4), 12);
+  EXPECT_EQ(mystl::get<1>(p4), 1.23);
+  p3.swap(p4);
+  EXPECT_EQ(mystl::get<0>(p3), 12);
+  EXPECT_EQ(mystl::get<1>(p3), 1.23);
+  EXPECT_EQ(mystl::get<0>(p4), 10);
+  EXPECT_EQ(mystl::get<1>(p4), 3.14);
+  mystl::swap(p3, p4);
+  EXPECT_EQ(mystl::get<0>(p3), 10);
+  EXPECT_EQ(mystl::get<1>(p3), 3.14);
+  EXPECT_EQ(mystl::get<0>(p4), 12);
+  EXPECT_EQ(mystl::get<1>(p4), 1.23);
+
+  auto p5 = mystl::make_pair(1, 3.14);
+  auto p6 =
+      mystl::make_pair(std::vector<int>{1, 2, 3}, std::string("hello world"));
+  std::vector<int> vec{1, 2, 3};
+  EXPECT_EQ(mystl::get<0>(p5), 1);
+  EXPECT_EQ(mystl::get<1>(p5), 3.14);
+  EXPECT_EQ(mystl::get<int>(p5), 1);
+  EXPECT_EQ(mystl::get<double>(p5), 3.14);
+  EXPECT_EQ(mystl::get<0>(p6), vec);
+  EXPECT_EQ(mystl::get<1>(p6), "hello world");
+  EXPECT_EQ(mystl::get<std::vector<int>>(p6), vec);
+  EXPECT_EQ(mystl::get<std::string>(p6), "hello world");
+}
+
+TEST(PairTest, MakePairAndCompare) {
+  int n = 1;
+  int a[5] = {1, 2, 3, 4, 5};
+  auto p1 = mystl::make_pair(n, a[1]);
+  EXPECT_EQ(p1.first, 1);
+  EXPECT_EQ(p1.second, 2);
+  n = 10;
+  EXPECT_EQ(p1.first, 1);
+  auto p2 = mystl::make_pair(std::ref(n), a);
+  EXPECT_EQ(p2.first, 10);
+  n = 7;
+  EXPECT_EQ(p2.first, 7);
+  EXPECT_EQ(*(p2.second + 2), 3);
+
+  std::vector<mystl::pair<int, std::string>> v = {
+      {2, "baz"}, {2, "bar"}, {1, "foo"}};
+  std::sort(v.begin(), v.end());
+  std::vector<mystl::pair<int, std::string>> v1 = {
+      {1, "foo"}, {2, "bar"}, {2, "baz"}};
+  EXPECT_EQ(v, v1);
 }
