@@ -51,6 +51,34 @@ struct is_all_true<Trait, Head, Tail...>
 
 template <template <class> class Trait, class... Types>
 inline constexpr bool is_all_true_v = is_all_true<Trait, Types...>::value;
+
+// is_all_true 受限于 Trait 只能接受一个参数
+// 对于 std::is_convertible<From, To> 就使用不了
+// is_all_true_general 对其优化版本
+template <class... Types>
+struct TypeLists {};
+
+// 主模版
+template <template <class> class Trait, class TypeLists, class... FixedArgs>
+struct is_all_true_general;
+
+// 终止条件, TypeLists 为空
+template <template <class> class Trait, class... FixedArgs>
+struct is_all_true_general<Trait, TypeLists<>, FixedArgs...> : std::true_type {
+};
+
+// 递归
+template <template <class> class Trait, class Head, class... Tail,
+          class... FixedArgs>
+struct is_all_true_general<Trait, TypeLists<Head, Tail...>, FixedArgs...>
+    : std::conditional<
+          Trait<Head, FixedArgs...>,
+          is_all_true_general<Trait, TypeLists<Tail...>, FixedArgs...>,
+          std::false_type> {};
+
+template <template <class> class Trait, class TypeLists, class... FixedArgs>
+inline constexpr bool is_all_true_general_v =
+    is_all_true_general<Trait, TypeLists, FixedArgs...>::value;
 }  // namespace mystl
 
 #endif
