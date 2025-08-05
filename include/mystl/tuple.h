@@ -51,18 +51,27 @@ class tuple
  public:
   using Base = TupleImpl<std::make_index_sequence<sizeof...(Types)>, Types...>;
 
-  template <
-      typename std::enable_if<
-          mystl::is_all_true_v<std::is_default_constructible, Types...> &&
-              mystl::is_all_true_v<
-                  mystl::is_implicitly_default_constructible_impl, Types...>,
-          int>::type = 0>
+  // TODO: explicit constructors
+  template <typename std::enable_if<
+                mystl::is_all_true_v<std::is_default_constructible, Types...>,
+                int>::type = 0>
   constexpr tuple() : Base() {}
 
-  constexpr tuple(const Types&... args);
+  template <typename std::enable_if<
+                sizeof...(Types) >= 1 &&
+                    mystl::is_all_true_v<std::is_copy_constructible, Types...>,
+                int>::type = 0>
+  constexpr tuple(const Types&... args) : Base(args...) {}
 
-  template <class... UTypes>
-  constexpr tuple(UTypes&&... args);
+  template <
+      class... UTypes,
+      typename std::enable_if<
+          sizeof...(Types) == sizeof...(UTypes) && sizeof...(UTypes) >= 1 &&
+              mystl::is_all_true_general_v<std::is_constructible,
+                                           mystl::TypeLists<Types...>,
+                                           mystl::TypeLists<UTypes...>>,
+          int>::type = 0>
+  constexpr tuple(UTypes&&... args) : Base(std::forward<UTypes>(args)...) {}
 
   template <class... UTypes>
   constexpr tuple(const tuple<UTypes...>& other);
