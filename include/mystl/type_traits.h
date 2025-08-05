@@ -34,7 +34,9 @@ struct nonsuch {
   ~nonsuch() = delete;
 };
 
+// C++17 可用折叠表达式代替，简洁又方便
 // is_all_true: 判断一个模板 Trait 对应的类型是否全为 true
+// 对于一堆类型 Types, 判断 Trait<T> ?= true
 // 主模板
 template <template <class> class Trait, class... Types>
 struct is_all_true;
@@ -55,30 +57,40 @@ inline constexpr bool is_all_true_v = is_all_true<Trait, Types...>::value;
 // is_all_true 受限于 Trait 只能接受一个参数
 // 对于 std::is_convertible<From, To> 就使用不了
 // is_all_true_general 对其优化版本
+// 对于两堆类型 Types, Utypes, 判断 Trait<T1, U1> ?= true
+// 如果两堆类型个数不一样--> false
 template <class... Types>
 struct TypeLists {};
 
 // 主模版
-template <template <class> class Trait, class TypeLists, class... FixedArgs>
+template <template <class> class Trait, class TypeLists1, class TypeLists2>
 struct is_all_true_general;
 
 // 终止条件, TypeLists 为空
-template <template <class> class Trait, class... FixedArgs>
-struct is_all_true_general<Trait, TypeLists<>, FixedArgs...> : std::true_type {
-};
+template <template <class> class Trait>
+struct is_all_true_general<Trait, TypeLists<>, TypeLists<>> : std::true_type {};
 
 // 递归
-template <template <class> class Trait, class Head, class... Tail,
-          class... FixedArgs>
-struct is_all_true_general<Trait, TypeLists<Head, Tail...>, FixedArgs...>
+template <template <class> class Trait, class Head1, class... Tail1,
+          class Head2, class... Tail2>
+struct is_all_true_general<Trait, TypeLists<Head1, Tail1...>,
+                           TypeLists<Head2, Tail2...>>
     : std::conditional<
-          Trait<Head, FixedArgs...>,
-          is_all_true_general<Trait, TypeLists<Tail...>, FixedArgs...>,
+          Trait<Head1, Head2>,
+          is_all_true_general<Trait, TypeLists<Tail1...>, TypeLists<Tail2...>>,
           std::false_type> {};
 
-template <template <class> class Trait, class TypeLists, class... FixedArgs>
+template <template <class> class Trait, class... Ts>
+struct is_all_true_general<Trait, TypeLists<Ts...>, TypeLists<>>
+    : std::false_type {};
+
+template <template <class> class Trait, class... Us>
+struct is_all_true_general<Trait, TypeLists<>, TypeLists<Us...>>
+    : std::false_type {};
+
+template <template <class> class Trait, class TypeLists1, class TypeLists2>
 inline constexpr bool is_all_true_general_v =
-    is_all_true_general<Trait, TypeLists, FixedArgs...>::value;
+    is_all_true_general<Trait, TypeLists, TypeLists2>::value;
 }  // namespace mystl
 
 #endif
