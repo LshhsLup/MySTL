@@ -2,6 +2,7 @@
 #define __MYSTL_TYPE_TRAITS_H__
 
 #include <type_traits>
+#include "mystl/tuple.h"
 
 namespace mystl {
 // is_implicitly_default_constructible
@@ -63,34 +64,36 @@ template <class... Types>
 struct TypeLists {};
 
 // 主模版
-template <template <class> class Trait, class TypeLists1, class TypeLists2>
+template <template <class, class> class Trait, class TypeLists1,
+          class TypeLists2>
 struct is_all_true_general;
 
 // 终止条件, TypeLists 为空
-template <template <class> class Trait>
+template <template <class, class> class Trait>
 struct is_all_true_general<Trait, TypeLists<>, TypeLists<>> : std::true_type {};
 
 // 递归
-template <template <class> class Trait, class Head1, class... Tail1,
+template <template <class, class> class Trait, class Head1, class... Tail1,
           class Head2, class... Tail2>
 struct is_all_true_general<Trait, TypeLists<Head1, Tail1...>,
                            TypeLists<Head2, Tail2...>>
     : std::conditional<
-          Trait<Head1, Head2>,
+          Trait<Head1, Head2>::value,
           is_all_true_general<Trait, TypeLists<Tail1...>, TypeLists<Tail2...>>,
           std::false_type> {};
 
-template <template <class> class Trait, class... Ts>
+template <template <class, class> class Trait, class... Ts>
 struct is_all_true_general<Trait, TypeLists<Ts...>, TypeLists<>>
     : std::false_type {};
 
-template <template <class> class Trait, class... Us>
+template <template <class, class> class Trait, class... Us>
 struct is_all_true_general<Trait, TypeLists<>, TypeLists<Us...>>
     : std::false_type {};
 
-template <template <class> class Trait, class TypeLists1, class TypeLists2>
+template <template <class, class> class Trait, class TypeLists1,
+          class TypeLists2>
 inline constexpr bool is_all_true_general_v =
-    is_all_true_general<Trait, TypeLists, TypeLists2>::value;
+    is_all_true_general<Trait, TypeLists1, TypeLists2>::value;
 }  // namespace mystl
 
 #endif
