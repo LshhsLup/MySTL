@@ -107,7 +107,7 @@ const typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
 template <std::size_t I, class... Types>
 const typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
     const mystl::tuple<Types...>&& t) noexcept;
-  
+
 template <class... Types>
 class tuple
     : public TupleImpl<std::make_index_sequence<sizeof...(Types)>, Types...> {
@@ -121,21 +121,22 @@ class tuple
       return mystl::is_all_true_v<std::is_default_constructible, Types...>;
     }
   };
-  template <class Dummy = void, typename = typename std::enable_if<
-                check_for_default_constructor<Dummy>::isDefaultConstructible()>::type>
+  template <class Dummy = void,
+            typename = typename std::enable_if<check_for_default_constructor<
+                Dummy>::isDefaultConstructible()>::type>
   constexpr tuple() : Base() {}
 
   template <class Dummy>
   struct check_for_direct_constructor {
     static constexpr bool isConstructible() {
-      return mystl::is_all_true_v<std::is_constructible, mystl::TypeLists<Types...>,
-               mystl::TypeLists<const Types&...>>;
+      return mystl::is_all_true_v<std::is_constructible,
+                                  mystl::TypeLists<Types...>,
+                                  mystl::TypeLists<const Types&...>>;
     }
-    static constexpr bool isNonEmpty() {
-      return sizeof...(Types) >= 1;
-    }
+    static constexpr bool isNonEmpty() { return sizeof...(Types) >= 1; }
   };
-  template <class Dummy = void, typename = typename std::enable_if<
+  template <class Dummy = void,
+            typename = typename std::enable_if<
                 check_for_direct_constructor<Dummy>::isConstructible() &&
                 check_for_direct_constructor<Dummy>::isNonEmpty()>::type>
   constexpr tuple(const Types&... args) : Base(args...) {}
