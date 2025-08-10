@@ -1,6 +1,7 @@
 #ifndef __MYSTL_TUPLE_H__
 #define __MYSTL_TUPLE_H__
 
+#include <initializer_list>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -204,11 +205,145 @@ class tuple
   tuple(const tuple& other) = default;
   tuple(tuple&& other) = default;
 
+  // assignment operators
+  tuple& operator=(typename std::conditional<
+                   mystl::is_all_true_v<std::is_copy_assignable, Types>,
+                   const tuple&, const nonsuch&>::type other) {
+    assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
+    return *this;
+  }
+
+  tuple& operator=(
+      typename std::conditional<
+          mystl::is_all_true_v<std::is_move_assignable, Types>, tuple&&,
+          const nonsuch&>::type
+          other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
+                                               Types...>) {
+    assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+    return *this;
+  }
+
+  template <class... UTypes,
+            typename std::enable_if<
+                sizeof...(UTypes) == sizeof...(Types) &&
+                    mystl::is_all_true_general_v<
+                        std::is_assignable, mystl::TypeLists<const Types&...>,
+                        mystl::TypeLists<const UTypes&...>>,
+                int>::type = 0>
+  tuple& operator=(const tuple<UTypes...>& other) {
+    assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
+    return *this;
+  }
+
+  template <class... UTypes,
+            typename std::enable_if<
+                sizeof...(UTypes) == sizeof...(Types) &&
+                    mystl::is_all_true_general_v<std::is_assignable,
+                                                 mystl::TypeLists<Types&...>,
+                                                 mystl::TypeLists<UTypes...>>,
+                int>::type = 0>
+  tuple& operator=(tuple<UTypes...>&& other) {
+    assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+    return *this;
+  }
+
+  template <class E1, class E2,
+            typename std::enable_if<
+                sizeof...(Types) == 2 &&
+                    mystl::is_all_true_general_v<
+                        std::is_assignable, mystl::TypeLists<Types&...>,
+                        mystl::TypeLists<const E1&, const E2&>>,
+                int>::type = 0>
+  tuple& operator=(const mystl::pair<E1, E2>& p) {
+    mystl::get<0>(*this) = p.first;
+    mystl::get<1>(*this) = p.second;
+    return *this;
+  }
+
+  template <class E1, class E2,
+            typename std::enable_if<
+                sizeof...(Types) == 2 &&
+                    mystl::is_all_true_general_v<std::is_assignable,
+                                                 mystl::TypeLists<Types&...>,
+                                                 mystl::TypeLists<E1, E2>>,
+                int>::type = 0>
+  tuple& operator=(mystl::pair<E1, E2>&& p) {
+    mystl::get<0>(*this) = std::move(p.first);
+    mystl::get<1>(*this) = std::move(p.second);
+    return *this;
+  }
+
+  // swap
+  void swap(tuple& other) noexcept {
+    swap_elements(other, std::make_index_sequence<sizeof...(Types)>{});
+  }
+
  private:
   template <class OtherTuple, std::size_t... Is>
   constexpr tuple(OtherTuple&& other, std::index_sequence<Is...>)
       : Base(mystl::get<Is>(std::forward<OtherTuple>(other))...) {}
+
+  template <class OtherTuple, std::size_t... Is>
+  void assign_from(OtherTuple&& other, std::index_sequence<Is...>) {
+    // C++11/14 not support fold expression
+    (void)(std::initializer_list<int>{
+        (void)(mystl::get<Is>(*this) =
+                   mystl::get<Is>(std::forward<OtherTuple>(other)),
+               0)...});
+    // C++17 可用折叠表达式代替
+    // (mystl::get<Is>(*this) = mystl::get<Is>(std::forward<OtherTuple>(other)), ...);
+  }
+
+  template <std::size_t... Is>
+  void swap_elements(tuple& other, std::index_sequence<Is...>) noexcept {
+    using std::swap;
+    // C++11/14 not support fold expression
+    (void)(std::initializer_list<int>{
+        (void)(swap(mystl::get<Is>(*this), mystl::get<Is>(other)), 0)...});
+    // C++17 可用折叠表达式代替
+    // (std::swap(mystl::get<Is>(*this), mystl::get<Is>(other)), ...);
+  }
 };
+
+template <template <class> class Func, class Tuple>
+struct transform_tuple_types;
+
+template <template <class> class Func, class... Types>
+struct transform_tuple_types<Func, mystl::tuple<Types...>> {
+  using type = mystl::tuple<typename Func<Types>::type...>;
+};
+
+template <template <class> class Func, class Tuple>
+using transform_tuple_types_t =
+    typename transform_tuple_types<Func, Tuple>::type;
+
+template <class... Types>
+using decay_tuple = transform_tuple_types_t<std::decay, mystl::tuple<Types...>>;
+
+template <class... Types>
+using return_types_tuple =
+    transform_tuple_types_t<mystl::unwrap_reference_wrapper,
+                            decay_tuple<Types...>>;
+// make_tuple
+template <class... Types>
+return_types_tuple<Types...> make_tuple(Types&&... args) {
+  return return_types_tuple<Types...>(std::forward<Types>(args)...);
+}
+
+// ignore
+struct ignore_t {
+  template <class T>
+  constexpr const ignore_t& operator=(T&&) noexcept {
+    return *this;
+  }
+};
+inline constexpr ignore_t ignore{};
+
+// tie
+template <class... Types>
+mystl::tuple<Types&...> tie(Types&... args) {
+  return mystl::tuple<Types&...>(args...);
+}
 
 // 根据类型获取 Types 中对应的索引
 template <class T, class... Types>
