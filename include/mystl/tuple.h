@@ -7,7 +7,7 @@
 #include "mystl/type_traits.h"
 #include "mystl/utility.h"
 
-std::tuple<int, int, int> t1;
+// std::tuple<int, int, int> t1;
 
 namespace mystl {
 // 获取 index 对应的类型
@@ -60,22 +60,6 @@ static constexpr bool is_unambiguous_conversion_v =
 template <class... Types>
 class tuple;
 
-template <std::size_t I, class... Types>
-typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
-    mystl::tuple<Types...>& t) noexcept;
-
-template <std::size_t I, class... Types>
-typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
-    mystl::tuple<Types...>&& t) noexcept;
-
-template <std::size_t I, class... Types>
-const typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
-    const mystl::tuple<Types...>& t) noexcept;
-
-template <std::size_t I, class... Types>
-const typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
-    const mystl::tuple<Types...>&& t) noexcept;
-
 template <std::size_t I, class T>
 struct TupleLeaf {
   T value{};
@@ -107,6 +91,23 @@ struct TupleImpl<std::index_sequence<Is...>, Types...>
       : TupleLeaf<Is, Types>(std::forward<Args>(args))... {}
 };
 
+// get 前向声明
+template <std::size_t I, class... Types>
+typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
+    mystl::tuple<Types...>& t) noexcept;
+
+template <std::size_t I, class... Types>
+typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
+    mystl::tuple<Types...>&& t) noexcept;
+
+template <std::size_t I, class... Types>
+const typename std::tuple_element<I, mystl::tuple<Types...>>::type& get(
+    const mystl::tuple<Types...>& t) noexcept;
+
+template <std::size_t I, class... Types>
+const typename std::tuple_element<I, mystl::tuple<Types...>>::type&& get(
+    const mystl::tuple<Types...>&& t) noexcept;
+  
 template <class... Types>
 class tuple
     : public TupleImpl<std::make_index_sequence<sizeof...(Types)>, Types...> {
@@ -114,15 +115,29 @@ class tuple
   using Base = TupleImpl<std::make_index_sequence<sizeof...(Types)>, Types...>;
 
   // TODO: explicit constructors
-  template <typename std::enable_if<
-                mystl::is_all_true_v<std::is_default_constructible, Types...>,
-                int>::type = 0>
+  template <class Dummy>
+  struct check_for_default_constructor {
+    static constexpr bool isDefaultConstructible() {
+      return mystl::is_all_true_v<std::is_default_constructible, Types...>;
+    }
+  };
+  template <class Dummy = void, typename = typename std::enable_if<
+                check_for_default_constructor<Dummy>::isDefaultConstructible()>::type>
   constexpr tuple() : Base() {}
 
-  template <typename std::enable_if<
-                sizeof...(Types) >= 1 &&
-                    mystl::is_all_true_v<std::is_copy_constructible, Types...>,
-                int>::type = 0>
+  template <class Dummy>
+  struct check_for_direct_constructor {
+    static constexpr bool isConstructible() {
+      return mystl::is_all_true_v<std::is_constructible, mystl::TypeLists<Types...>,
+               mystl::TypeLists<const Types&...>>;
+    }
+    static constexpr bool isNonEmpty() {
+      return sizeof...(Types) >= 1;
+    }
+  };
+  template <class Dummy = void, typename = typename std::enable_if<
+                check_for_direct_constructor<Dummy>::isConstructible() &&
+                check_for_direct_constructor<Dummy>::isNonEmpty()>::type>
   constexpr tuple(const Types&... args) : Base(args...) {}
 
   template <
@@ -182,7 +197,7 @@ class tuple
                                                  mystl::TypeLists<Types...>,
                                                  mystl::TypeLists<U1&&, U2&&>>,
                 int>::type = 0>
-  constexpr tuple(std::pair<U1, U2>&& p)
+  constexpr tuple(mystl::pair<U1, U2>&& p)
       : Base(std::move(p.first), std::move(p.second)) {}
 
   tuple(const tuple& other) = default;
@@ -307,6 +322,12 @@ constexpr const T&& get(const mystl::tuple<Types...>&& t) noexcept {
 }  // namespace mystl
 
 namespace std {
+// std::tuple_size 特化
+template <class... Types>
+struct tuple_size<mystl::tuple<Types...>>
+    : std::integral_constant<std::size_t, sizeof...(Types)> {};
+
+// std::tuple_element 特化
 template <std::size_t I, class... Types>
 struct tuple_element<I, mystl::tuple<Types...>> {
   using type = mystl::NthType_t<I, Types...>;
