@@ -130,7 +130,7 @@ class tuple
   template <class Dummy>
   struct check_for_direct_constructor {
     static constexpr bool isConstructible() {
-      return mystl::is_all_true_v<std::is_constructible,
+      return mystl::is_all_true_general_v<std::is_constructible,
                                   mystl::TypeLists<Types...>,
                                   mystl::TypeLists<const Types&...>>;
     }
@@ -207,7 +207,7 @@ class tuple
 
   // assignment operators
   tuple& operator=(typename std::conditional<
-                   mystl::is_all_true_v<std::is_copy_assignable, Types>,
+                   mystl::is_all_true_v<std::is_copy_assignable, Types...>,
                    const tuple&, const nonsuch&>::type other) {
     assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
     return *this;
@@ -215,7 +215,7 @@ class tuple
 
   tuple& operator=(
       typename std::conditional<
-          mystl::is_all_true_v<std::is_move_assignable, Types>, tuple&&,
+          mystl::is_all_true_v<std::is_move_assignable, Types...>, tuple&&,
           const nonsuch&>::type
           other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
                                                Types...>) {
@@ -287,7 +287,7 @@ class tuple
   void assign_from(OtherTuple&& other, std::index_sequence<Is...>) {
     // C++11/14 not support fold expression
     (void)(std::initializer_list<int>{
-        (void)(mystl::get<Is>(*this) =
+        (mystl::get<Is>(*this) =
                    mystl::get<Is>(std::forward<OtherTuple>(other)),
                0)...});
     // C++17 可用折叠表达式代替
@@ -299,7 +299,7 @@ class tuple
     using std::swap;
     // C++11/14 not support fold expression
     (void)(std::initializer_list<int>{
-        (void)(swap(mystl::get<Is>(*this), mystl::get<Is>(other)), 0)...});
+        (swap(mystl::get<Is>(*this), mystl::get<Is>(other)), 0)...});
     // C++17 可用折叠表达式代替
     // (std::swap(mystl::get<Is>(*this), mystl::get<Is>(other)), ...);
   }
@@ -333,7 +333,7 @@ return_types_tuple<Types...> make_tuple(Types&&... args) {
 // ignore
 struct ignore_t {
   template <class T>
-  constexpr const ignore_t& operator=(T&&) noexcept {
+  constexpr const ignore_t& operator=(T&&) const noexcept {
     return *this;
   }
 };
