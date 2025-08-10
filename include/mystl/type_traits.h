@@ -2,7 +2,6 @@
 #define __MYSTL_TYPE_TRAITS_H__
 
 #include <type_traits>
-#include "mystl/tuple.h"
 
 namespace mystl {
 // is_implicitly_default_constructible
@@ -80,7 +79,7 @@ struct is_all_true_general<Trait, TypeLists<Head1, Tail1...>,
     : std::conditional<
           Trait<Head1, Head2>::value,
           is_all_true_general<Trait, TypeLists<Tail1...>, TypeLists<Tail2...>>,
-          std::false_type> {};
+          std::false_type>::type {};
 
 template <template <class, class> class Trait, class... Ts>
 struct is_all_true_general<Trait, TypeLists<Ts...>, TypeLists<>>
