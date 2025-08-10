@@ -203,3 +203,93 @@ TEST(TupleTest, TieAndSwap) {
     EXPECT_EQ(mystl::get<0>(t2), 1);
     EXPECT_EQ(mystl::get<1>(t2), "hello");
 }
+
+TEST(TupleTest, ComparisonOperators) {
+    mystl::tuple<int, std::string> t1(1, "hello");
+    mystl::tuple<int, std::string> t2(1, "hello");
+    mystl::tuple<int, std::string> t3(2, "hello");
+    mystl::tuple<int, std::string> t4(1, "world");
+
+    // Equality
+    EXPECT_TRUE(t1 == t2);
+    EXPECT_FALSE(t1 == t3);
+    EXPECT_FALSE(t1 == t4);
+
+    // Inequality
+    EXPECT_FALSE(t1 != t2);
+    EXPECT_TRUE(t1 != t3);
+    EXPECT_TRUE(t1 != t4);
+
+    mystl::tuple<int, double, const char*> t5(10, 3.14, "test");
+    mystl::tuple<long, float, std::string> t6(10, 3.14f, "test");
+    mystl::tuple<short, float, std::string> t7(11, 3.14f, "test");
+
+    // Equality with convertible types
+    EXPECT_TRUE(t5 != t6);
+    EXPECT_FALSE(t5 == t7);
+
+    mystl::tuple<> empty1;
+    mystl::tuple<> empty2;
+    mystl::tuple<int> not_empty(1);
+
+    EXPECT_TRUE(empty1 == empty2);
+    EXPECT_FALSE(empty1 != empty2);
+    // Compare first element
+    mystl::tuple<int, int> t8(1, 100);
+    mystl::tuple<int, int> t9(2, 1);
+    EXPECT_TRUE(t8 < t9);
+    EXPECT_FALSE(t9 < t8);
+
+    // First elements are equal, compare second
+    mystl::tuple<int, std::string> t10(5, "apple");
+    mystl::tuple<int, std::string> t11(5, "banana");
+    EXPECT_TRUE(t10 < t11);
+    EXPECT_FALSE(t11 < t10);
+
+    // Tuples are identical, so not less
+    mystl::tuple<int, int> t12(10, 20);
+    mystl::tuple<int, int> t13(10, 20);
+    EXPECT_FALSE(t12 < t13);
+
+    mystl::tuple<int, std::string> t14(10, "a");
+    mystl::tuple<long, const char*> t15(10, "b");
+    mystl::tuple<int, const char*> t16(9, "z");
+
+    EXPECT_TRUE(t14 < t15);  // 10 == 10, "a" < "b"
+    EXPECT_FALSE(t15 < t14);
+    EXPECT_TRUE(t16 < t14);  // 9 < 10
+    EXPECT_FALSE(t14 < t16);
+
+    mystl::tuple<int, int> t_small(1, 1);
+    mystl::tuple<int, int> t_large(1, 2);
+    mystl::tuple<int, int> t_equal(1, 1);
+
+    // Operator <
+    EXPECT_TRUE(t_small < t_large);
+    EXPECT_FALSE(t_large < t_small);
+    EXPECT_FALSE(t_small < t_equal);
+
+    // Operator <=
+    EXPECT_TRUE(t_small <= t_large);
+    EXPECT_TRUE(t_small <= t_equal);
+    EXPECT_FALSE(t_large <= t_small);
+
+    // Operator >
+    EXPECT_TRUE(t_large > t_small);
+    EXPECT_FALSE(t_small > t_large);
+    EXPECT_FALSE(t_equal > t_small);
+
+    // Operator >=
+    EXPECT_TRUE(t_large >= t_small);
+    EXPECT_TRUE(t_equal >= t_small);
+    EXPECT_FALSE(t_small >= t_large);
+
+    mystl::tuple<> empty3;
+    mystl::tuple<> empty4;
+
+    EXPECT_FALSE(empty3 < empty4);
+    EXPECT_FALSE(empty3 > empty4);
+    EXPECT_TRUE(empty3 <= empty4);
+
+    EXPECT_TRUE(empty3 >= empty4);
+}
