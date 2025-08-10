@@ -5,7 +5,11 @@
 #include "mystl/tuple.h"
 #include "utils/test_types.h"
 
+using namespace mystl::test;
+
 TEST(TupleTest, DefaultConstructors) {
+  // 编译出错
+  // mystl::tuple<int, double, NoDefault> t0;
   mystl::tuple<int, std::string, std::vector<int>> t1;
   std::vector<int> v1{};
   EXPECT_EQ(mystl::get<0>(t1), 0);
@@ -49,68 +53,153 @@ TEST(TupleTest, ConvertingConstructors) {
   // 1. 从 const lvalue tuple 转换 (应为拷贝转换)
   mystl::tuple<long, const char*> t_source1(99L, "test source");
   mystl::tuple<int, std::string> t_dest1(t_source1);
+
+  EXPECT_EQ(mystl::get<0>(t_dest1), 99);
+  EXPECT_EQ(mystl::get<1>(t_dest1), "test source");
+  // 源 tuple 保持不变
+  EXPECT_EQ(mystl::get<0>(t_source1), 99L);
+
+  // 2. 从 rvalue tuple 转换 (应为移动转换)
+  mystl::tuple<int, std::string> t_dest2(
+      mystl::tuple<long, const char*>(88L, "another test"));
+
+  EXPECT_EQ(mystl::get<0>(t_dest2), 88);
+  EXPECT_EQ(mystl::get<1>(t_dest2), "another test");
+
+  // 3. 使用 move-only 类型测试 rvalue 转换构造
+  auto source_ptr = std::make_unique<int>(100);
+  mystl::tuple<std::unique_ptr<int>> t_source3(std::move(source_ptr));
+  // 从 tuple<unique_ptr<int>> 移动构造成 tuple<unique_ptr<const int>>
+  mystl::tuple<std::unique_ptr<const int>> t_dest3(std::move(t_source3));
+
+  ASSERT_NE(mystl::get<0>(t_dest3), nullptr);
+  EXPECT_EQ(*mystl::get<0>(t_dest3), 100);
+  // 验证源 unique_ptr 已被移走
+  EXPECT_EQ(mystl::get<0>(t_source3), nullptr);
+
+  // 4. 测试单元素元组的转换规则
+  mystl::tuple<long> single_source(12345L);
+  mystl::tuple<int> single_dest(single_source);  // 转换构造
+  EXPECT_EQ(mystl::get<0>(single_dest), 12345);
+
+  mystl::tuple<int> single_source_same(99);
+  mystl::tuple<int> single_dest_same(
+      single_source_same);  // 应该调用拷贝构造，而不是转换构造
+  EXPECT_EQ(mystl::get<0>(single_dest_same), 99);
 }
 
-//   EXPECT_EQ(mystl::get<0>(t_dest1), 99);
-//   EXPECT_EQ(mystl::get<1>(t_dest1), "test source");
-//   // 源 tuple 保持不变
-//   EXPECT_EQ(mystl::get<0>(t_source1), 99L);
+// 测试：从 pair 构造元组
+TEST(TupleTest, PairConstructors) {
+  // 1. 从 const lvalue pair 构造 (拷贝转换)
+  mystl::pair<int, std::string> p1(200, "from pair");
+  mystl::tuple<long, std::string> t1(p1);
 
-//   // 2. 从 rvalue tuple 转换 (应为移动转换)
-//   mystl::tuple<int, std::string> t_dest2(
-//       mystl::tuple<long, const char*>(88L, "another test"));
+  EXPECT_EQ(mystl::get<0>(t1), 200L);
+  EXPECT_EQ(mystl::get<1>(t1), "from pair");
+  // 原始 pair 不变
+  EXPECT_EQ(p1.first, 200);
 
-//   EXPECT_EQ(mystl::get<0>(t_dest2), 88);
-//   EXPECT_EQ(mystl::get<1>(t_dest2), "another test");
+  // 2. 从 rvalue std::pair 构造 (移动转换)
+  mystl::tuple<int, std::unique_ptr<int>> t2(
+      mystl::make_pair(300, std::make_unique<int>(400)));
 
-//   // 3. 使用 move-only 类型测试 rvalue 转换构造
-//   auto source_ptr = std::make_unique<int>(100);
-//   mystl::tuple<std::unique_ptr<int>> t_source3(std::move(source_ptr));
-//   // 从 tuple<unique_ptr<int>> 移动构造成 tuple<unique_ptr<const int>>
-//   mystl::tuple<std::unique_ptr<const int>> t_dest3(std::move(t_source3));
+  EXPECT_EQ(mystl::get<0>(t2), 300);
+  ASSERT_NE(mystl::get<1>(t2), nullptr);
+  EXPECT_EQ(*mystl::get<1>(t2), 400);
 
-//   ASSERT_NE(mystl::get<0>(t_dest3), nullptr);
-//   EXPECT_EQ(*mystl::get<0>(t_dest3), 100);
-//   // 验证源 unique_ptr 已被移走
-//   EXPECT_EQ(mystl::get<0>(t_source3), nullptr);
+  // 3. 从 rvalue mystl::pair 构造 (移动转换)
+  mystl::pair<int, std::unique_ptr<int>> p3(500, std::make_unique<int>(600));
+  mystl::tuple<long, std::unique_ptr<int>> t3(std::move(p3));
 
-//   // 4. 测试单元素元组的转换规则
-//   mystl::tuple<long> single_source(12345L);
-//   mystl::tuple<int> single_dest(single_source);  // 转换构造
-//   EXPECT_EQ(mystl::get<0>(single_dest), 12345);
+  EXPECT_EQ(mystl::get<0>(t3), 500L);
+  ASSERT_NE(mystl::get<1>(t3), nullptr);
+  EXPECT_EQ(*mystl::get<1>(t3), 600);
+  // 验证原始 pair 的资源已被移走
+  EXPECT_EQ(p3.second, nullptr);
+}
 
-//   mystl::tuple<int> single_source_same(99);
-//   mystl::tuple<int> single_dest_same(
-//       single_source_same);  // 应该调用拷贝构造，而不是转换构造
-//   EXPECT_EQ(mystl::get<0>(single_dest_same), 99);
-// }
+TEST(TupleTest, AssignOperators) {
+    // 1. 同类型 copy assign
+    mystl::tuple<int, std::string> t1(1, "hello");
+    mystl::tuple<int, std::string> t2;
+    t2 = t1;
+    EXPECT_EQ(mystl::get<0>(t2), 1);
+    EXPECT_EQ(mystl::get<1>(t2), "hello");
 
-// // 测试：从 pair 构造元组
-// TEST(TupleTest, PairConstructors) {
-//   // 1. 从 const lvalue pair 构造 (拷贝转换)
-//   mystl::pair<int, std::string> p1(200, "from pair");
-//   mystl::tuple<long, std::string> t1(p1);
+    // 2. 同类型 move assign
+    mystl::tuple<int, std::string> t3;
+    t3 = std::move(t1);
+    EXPECT_EQ(mystl::get<0>(t3), 1);
+    EXPECT_EQ(mystl::get<1>(t3), "hello");
 
-//   EXPECT_EQ(mystl::get<0>(t1), 200L);
-//   EXPECT_EQ(mystl::get<1>(t1), "from pair");
-//   // 原始 pair 不变
-//   EXPECT_EQ(p1.first, 200);
+    // 3. 不同类型（可转换） copy assign
+    mystl::tuple<int, double> t4(42, 3.14);
+    mystl::tuple<long, long double> t5;
+    t5 = t4;
+    EXPECT_EQ(mystl::get<0>(t5), 42);
+    EXPECT_EQ(mystl::get<1>(t5), 3.14);
 
-//   // 2. 从 rvalue std::pair 构造 (移动转换)
-//   mystl::tuple<int, std::unique_ptr<int>> t2(
-//       mystl::make_pair(300, std::make_unique<int>(400)));
+    // 4. 不同类型 move assign
+    mystl::tuple<long, std::string> t6(99, "world");
+    mystl::tuple<int, std::string> t7;
+    t7 = std::move(t6);
+    EXPECT_EQ(mystl::get<0>(t7), 99);
+    EXPECT_EQ(mystl::get<1>(t7), "world");
 
-//   EXPECT_EQ(mystl::get<0>(t2), 300);
-//   ASSERT_NE(mystl::get<1>(t2), nullptr);
-//   EXPECT_EQ(*mystl::get<1>(t2), 400);
+    // 5. 从 pair copy assign
+    mystl::pair<int, std::string> p1(77, "pair");
+    mystl::tuple<int, std::string> t8;
+    t8 = p1;
+    EXPECT_EQ(mystl::get<0>(t8), 77);
+    EXPECT_EQ(mystl::get<1>(t8), "pair");
 
-//   // 3. 从 rvalue mystl::pair 构造 (移动转换)
-//   mystl::pair<int, std::unique_ptr<int>> p3(500, std::make_unique<int>(600));
-//   mystl::tuple<long, std::unique_ptr<int>> t3(std::move(p3));
+    // 6. 从 pair move assign
+    mystl::pair<int, std::string> p2(88, "move");
+    mystl::tuple<int, std::string> t9;
+    t9 = std::move(p2);
+    EXPECT_EQ(mystl::get<0>(t9), 88);
+    EXPECT_EQ(mystl::get<1>(t9), "move");
+}
 
-//   EXPECT_EQ(mystl::get<0>(t3), 500L);
-//   ASSERT_NE(mystl::get<1>(t3), nullptr);
-//   EXPECT_EQ(*mystl::get<1>(t3), 600);
-//   // 验证原始 pair 的资源已被移走
-//   EXPECT_EQ(p3.second, nullptr);
-// }
+// ---------- TEST 2: make_tuple ----------
+TEST(TupleTest, MakeTuple) {
+    // 1. 基本类型
+    auto t1 = mystl::make_tuple(1, 2.5, 'a');
+    EXPECT_EQ(mystl::get<0>(t1), 1);
+    EXPECT_DOUBLE_EQ(mystl::get<1>(t1), 2.5);
+    EXPECT_EQ(mystl::get<2>(t1), 'a');
+
+    // 2. 引用包装
+    int x = 42;
+    auto t2 = mystl::make_tuple(std::ref(x));
+    mystl::get<0>(t2) = 99;
+    EXPECT_EQ(x, 99);
+
+    // 3. 混合类型（std::string + const char*）
+    auto t3 = mystl::make_tuple(std::string("abc"), "xyz");
+    EXPECT_EQ(mystl::get<0>(t3), "abc");
+    EXPECT_EQ(mystl::get<1>(t3), std::string("xyz"));
+}
+
+// ---------- TEST 3: tie & swap ----------
+TEST(TupleTest, TieAndSwap) {
+    // 1. tie 绑定引用
+    int a = 1, b = 2;
+    mystl::tie(a, b) = mystl::make_pair(10, 20);
+    EXPECT_EQ(a, 10);
+    EXPECT_EQ(b, 20);
+
+    // 2. ignore
+    mystl::tie(a, mystl::ignore) = mystl::make_tuple(42, 999);
+    EXPECT_EQ(a, 42);
+    EXPECT_EQ(b, 20); // b 未被修改
+
+    // 3. swap
+    mystl::tuple<int, std::string> t1(1, "hello");
+    mystl::tuple<int, std::string> t2(2, "world");
+    t1.swap(t2);
+    EXPECT_EQ(mystl::get<0>(t1), 2);
+    EXPECT_EQ(mystl::get<1>(t1), "world");
+    EXPECT_EQ(mystl::get<0>(t2), 1);
+    EXPECT_EQ(mystl::get<1>(t2), "hello");
+}
