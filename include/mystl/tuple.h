@@ -131,15 +131,16 @@ class tuple
   struct check_for_direct_constructor {
     static constexpr bool isConstructible() {
       return mystl::is_all_true_general_v<std::is_constructible,
-                                  mystl::TypeLists<Types...>,
-                                  mystl::TypeLists<const Types&...>>;
+                                          mystl::TypeLists<Types...>,
+                                          mystl::TypeLists<const Types&...>>;
     }
     static constexpr bool isNonEmpty() { return sizeof...(Types) >= 1; }
   };
   template <class Dummy = void,
             typename std::enable_if<
                 check_for_direct_constructor<Dummy>::isConstructible() &&
-                check_for_direct_constructor<Dummy>::isNonEmpty(), bool>::type = true>
+                    check_for_direct_constructor<Dummy>::isNonEmpty(),
+                bool>::type = true>
   constexpr tuple(const Types&... args) : Base(args...) {}
 
   template <
@@ -286,10 +287,9 @@ class tuple
   template <class OtherTuple, std::size_t... Is>
   void assign_from(OtherTuple&& other, std::index_sequence<Is...>) {
     // C++11/14 not support fold expression
-    (void)(std::initializer_list<int>{
-        (mystl::get<Is>(*this) =
-                   mystl::get<Is>(std::forward<OtherTuple>(other)),
-               0)...});
+    (void)(std::initializer_list<int>{(
+        mystl::get<Is>(*this) = mystl::get<Is>(std::forward<OtherTuple>(other)),
+        0)...});
     // C++17 可用折叠表达式代替
     // (mystl::get<Is>(*this) = mystl::get<Is>(std::forward<OtherTuple>(other)), ...);
   }
@@ -346,79 +346,85 @@ mystl::tuple<Types&...> tie(Types&... args) {
 }
 
 //  compare operators
-template<std::size_t I, class... Types, class... UTypes>
+template <std::size_t I, class... Types, class... UTypes>
 constexpr typename std::enable_if<I == sizeof...(Types), bool>::type
 is_equal_impl(const mystl::tuple<Types...>& lhs,
-                            const mystl::tuple<UTypes...>& rhs) {
-  return true; // 所有元素都已比较完
+              const mystl::tuple<UTypes...>& rhs) {
+  return true;  // 所有元素都已比较完
 }
 
-template<std::size_t I, class... Types, class... UTypes>
-constexpr typename std::enable_if<I < sizeof...(Types), bool>::type
-is_equal_impl(const mystl::tuple<Types...>& lhs,
-                            const mystl::tuple<UTypes...>& rhs) {
+template <std::size_t I, class... Types, class... UTypes>
+    constexpr typename std::enable_if <
+    I<sizeof...(Types), bool>::type is_equal_impl(
+        const mystl::tuple<Types...>& lhs, const mystl::tuple<UTypes...>& rhs) {
   if (mystl::get<I>(lhs) != mystl::get<I>(rhs)) {
-    return false; // 当前元素不相等，返回 false
+    return false;  // 当前元素不相等，返回 false
   }
-  return is_equal_impl<I + 1>(lhs, rhs); // 递归比较
+  return is_equal_impl<I + 1>(lhs, rhs);  // 递归比较
 }
 
-template< class... TTypes, class... UTypes >
-bool operator==( const mystl::tuple<TTypes...>& lhs,
-                 const mystl::tuple<UTypes...>& rhs ) {
+template <class... TTypes, class... UTypes>
+bool operator==(const mystl::tuple<TTypes...>& lhs,
+                const mystl::tuple<UTypes...>& rhs) {
   return is_equal_impl<0>(lhs, rhs);
 }
 
-template< class... TTypes, class... UTypes >
-bool operator!=( const mystl::tuple<TTypes...>& lhs,
-                 const mystl::tuple<UTypes...>& rhs ) {
+template <class... TTypes, class... UTypes>
+bool operator!=(const mystl::tuple<TTypes...>& lhs,
+                const mystl::tuple<UTypes...>& rhs) {
   return !(lhs == rhs);
 }
 
 template <std::size_t I, class... Types, class... UTypes>
 constexpr typename std::enable_if<I == sizeof...(Types), bool>::type
 is_less_impl(const mystl::tuple<Types...>& lhs,
-                            const mystl::tuple<UTypes...>& rhs) {
-  return false; // 所有元素都已比较完，lhs 不小于 rhs
+             const mystl::tuple<UTypes...>& rhs) {
+  return false;  // 所有元素都已比较完，lhs 不小于 rhs
 }
 
 template <std::size_t I, class... Types, class... UTypes>
-constexpr typename std::enable_if<I < sizeof...(Types), bool>::type
-is_less_impl(const mystl::tuple<Types...>& lhs,
-                            const mystl::tuple<UTypes...>& rhs) {               
+    constexpr typename std::enable_if <
+    I<sizeof...(Types), bool>::type is_less_impl(
+        const mystl::tuple<Types...>& lhs, const mystl::tuple<UTypes...>& rhs) {
   if (mystl::get<I>(lhs) < mystl::get<I>(rhs)) {
-    return true; // 当前元素小于 rhs，返回 true
+    return true;  // 当前元素小于 rhs，返回 true
   } else if (mystl::get<I>(rhs) < mystl::get<I>(lhs)) {
-    return false; // 当前元素大于 lhs，返回 false
+    return false;  // 当前元素大于 lhs，返回 false
   }
-  return is_less_impl<I + 1>(lhs, rhs); // 递归比较
+  return is_less_impl<I + 1>(lhs, rhs);  // 递归比较
 }
 
-template< class... TTypes, class... UTypes >
-bool operator<( const mystl::tuple<TTypes...>& lhs,
-                const mystl::tuple<UTypes...>& rhs ) {
+template <class... TTypes, class... UTypes>
+bool operator<(const mystl::tuple<TTypes...>& lhs,
+               const mystl::tuple<UTypes...>& rhs) {
   if constexpr (sizeof...(TTypes) == 0) {
-    return false; // 空 tuple 不小于任何 tuple
+    return false;  // 空 tuple 不小于任何 tuple
   }
   return is_less_impl<0>(lhs, rhs);
 }
 
-template< class... TTypes, class... UTypes >
-bool operator<=( const mystl::tuple<TTypes...>& lhs,
-                 const mystl::tuple<UTypes...>& rhs ) {
+template <class... TTypes, class... UTypes>
+bool operator<=(const mystl::tuple<TTypes...>& lhs,
+                const mystl::tuple<UTypes...>& rhs) {
   return !(rhs < lhs);
-                 }
+}
 
-template< class... TTypes, class... UTypes >
-bool operator>( const mystl::tuple<TTypes...>& lhs,
-                const mystl::tuple<UTypes...>& rhs ) {
+template <class... TTypes, class... UTypes>
+bool operator>(const mystl::tuple<TTypes...>& lhs,
+               const mystl::tuple<UTypes...>& rhs) {
   return rhs < lhs;
 }
 
-template< class... TTypes, class... UTypes >
-bool operator>=( const mystl::tuple<TTypes...>& lhs,
-                 const mystl::tuple<UTypes...>& rhs ) {
+template <class... TTypes, class... UTypes>
+bool operator>=(const mystl::tuple<TTypes...>& lhs,
+                const mystl::tuple<UTypes...>& rhs) {
   return !(lhs < rhs);
+}
+
+// forward_as_tuple
+template <class... Types>
+mystl::tuple<Types&&...> forward_as_tuple(Types&&... args) noexcept {
+  return mystl::tuple<Types&&...>(std::forward<Types>(args)...);
 }
 
 // 根据类型获取 Types 中对应的索引
