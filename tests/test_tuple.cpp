@@ -293,3 +293,57 @@ TEST(TupleTest, ComparisonOperators) {
 
   EXPECT_TRUE(empty3 >= empty4);
 }
+
+TEST(TupleTest, ForwardAsTuple) {
+  int x = 42;
+  double y = 3.14;
+  auto t = mystl::forward_as_tuple(x, y);
+
+  // 检查类型是引用
+  static_assert(std::is_same<typename std::tuple_element<0, decltype(t)>::type,
+                             int&>::value,
+                "Should be int&");
+  static_assert(std::is_same<typename std::tuple_element<1, decltype(t)>::type,
+                             double&>::value,
+                "Should be double&");
+  // 验证元素值
+  EXPECT_EQ(mystl::get<0>(t), 42);
+  EXPECT_DOUBLE_EQ(mystl::get<1>(t), 3.14);
+  // 修改 tuple 元素，原值也应改变
+  mystl::get<0>(t) = 100;
+  mystl::get<1>(t) = 6.28;
+  EXPECT_EQ(x, 100);
+  EXPECT_DOUBLE_EQ(y, 6.28);
+
+  auto t1 = mystl::forward_as_tuple(123, 4.125);
+
+  // 检查类型是右值引用
+  static_assert(std::is_same<typename std::tuple_element<0, decltype(t1)>::type,
+                             int&&>::value,
+                "Should be int&&");
+  static_assert(std::is_same<typename std::tuple_element<1, decltype(t1)>::type,
+                             double&&>::value,
+                "Should be double&&");
+  // 检查值
+  EXPECT_EQ(mystl::get<0>(t1), 123);
+  EXPECT_DOUBLE_EQ(mystl::get<1>(t1), 4.125);
+
+  int a = 10;
+  auto t2 = std::forward_as_tuple(a, 20);
+  // 第一个是左值引用，第二个是右值引用
+  static_assert(std::is_same<typename std::tuple_element<0, decltype(t2)>::type,
+                             int&>::value,
+                "Should be int&");
+  static_assert(std::is_same<typename std::tuple_element<1, decltype(t2)>::type,
+                             int&&>::value,
+                "Should be int&&");
+  // 修改第一个
+  std::get<0>(t2) = 99;
+  EXPECT_EQ(a, 99);
+  // 第二个是右值，不能直接用来修改原值（原值已经是临时对象）
+  // 未定义行为， 20 这个临时对象在构造的时候就已经被销毁了
+  // forward_as_tuple 构造的时候 20 的右值引用
+  // 20 这个临时对象在 forward_as_tuple 返回后就被销毁了
+  // 再去 && 引用这个临时对象是未定义行为
+  // EXPECT_EQ(std::get<1>(t2), 20);
+}
