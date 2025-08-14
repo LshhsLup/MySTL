@@ -347,3 +347,42 @@ TEST(TupleTest, ForwardAsTuple) {
   // 再去 && 引用这个临时对象是未定义行为
   // EXPECT_EQ(std::get<1>(t2), 20);
 }
+
+// ---------- tuple_cat ----------
+TEST(TupleTest, TupleCat) {
+  mystl::tuple<int, char> t1(1, 'a');
+  mystl::tuple<std::string, double> t2("hello", 3.14);
+  mystl::tuple<> t3;  // 空 tuple
+  mystl::tuple<long> t4(100L);
+
+  // 拼接两个非空 tuple
+  auto cat1 = mystl::tuple_cat(t1, t2);
+  static_assert(
+      std::is_same<decltype(cat1),
+                   mystl::tuple<int, char, std::string, double>>::value,
+      "Type mismatch in tuple_cat");
+  EXPECT_EQ(mystl::get<0>(cat1), 1);
+  EXPECT_EQ(mystl::get<1>(cat1), 'a');
+  EXPECT_EQ(mystl::get<2>(cat1), "hello");
+  EXPECT_DOUBLE_EQ(mystl::get<3>(cat1), 3.14);
+
+  // 拼接包含空 tuple
+  auto cat2 = mystl::tuple_cat(t1, t3, t4);
+  static_assert(std::is_same<decltype(cat2), mystl::tuple<int, char, long>>::value,
+                "Type mismatch in tuple_cat with empty tuple");
+  EXPECT_EQ(mystl::get<0>(cat2), 1);
+  EXPECT_EQ(mystl::get<1>(cat2), 'a');
+  EXPECT_EQ(mystl::get<2>(cat2), 100L);
+
+  // 拼接多个 tuple
+  auto cat3 = mystl::tuple_cat(t3, t1, t2, t4);
+  static_assert(
+      std::is_same<decltype(cat3),
+                   mystl::tuple<int, char, std::string, double, long>>::value,
+      "Type mismatch in tuple_cat with multiple tuples");
+  EXPECT_EQ(mystl::get<0>(cat3), 1);
+  EXPECT_EQ(mystl::get<1>(cat3), 'a');
+  EXPECT_EQ(mystl::get<2>(cat3), "hello");
+  EXPECT_DOUBLE_EQ(mystl::get<3>(cat3), 3.14);
+  EXPECT_EQ(mystl::get<4>(cat3), 100L);
+}
