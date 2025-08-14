@@ -427,6 +427,77 @@ mystl::tuple<Types&&...> forward_as_tuple(Types&&... args) noexcept {
   return mystl::tuple<Types&&...>(std::forward<Types>(args)...);
 }
 
+// 合并两个 tuple
+template <class T1, class T2>
+struct TupleCatHelper;
+
+template <class... Ts1, class... Ts2>
+struct TupleCatHelper<mystl::tuple<Ts1...>, mystl::tuple<Ts2...>> {
+  using type = mystl::tuple<Ts1..., Ts2...>;
+};
+
+// 递归的合并
+template <class... Tuples>
+struct TupleCatRValue;
+
+template <class Tuple>
+struct TupleCatRValue<Tuple> {
+  using type = Tuple;
+};
+
+template <class Tuple1, class Tuple2, class... Rest>
+struct TupleCatRValue<Tuple1, Tuple2, Rest...> {
+  using type =
+      typename TupleCatRValue<typename TupleCatHelper<Tuple1, Tuple2>::type,
+                              Rest...>::type;
+};
+
+template <class... Tuples>
+using TupleCatRValue_t = typename TupleCatRValue<Tuples...>::type;
+
+// 合并两个 tuple
+template <class Tuple1, class Tuple2, std::size_t... Is1, std::size_t... Is2>
+auto tuple_cat_two_impl(Tuple1&& t1, Tuple2&& t2, std::index_sequence<Is1...>,
+                        std::index_sequence<Is2...>) {
+  using result_type =
+      TupleCatRValue_t<std::decay_t<Tuple1>, std::decay_t<Tuple2>>;
+  return result_type(
+      mystl::get<Is1>(std::forward<Tuple1>(t1))...,
+      mystl::get<Is2>(std::forward<Tuple2>(t2))...);
+}
+
+template <class Tuple1, class Tuple2>
+auto tuple_cat_two_impl(Tuple1&& t1, Tuple2&& t2) {
+  return tuple_cat_two_impl(
+      std::forward<Tuple1>(t1), std::forward<Tuple2>(t2),
+      std::make_index_sequence<std::tuple_size<std::decay_t<Tuple1>>::value>{},
+      std::make_index_sequence<std::tuple_size<std::decay_t<Tuple2>>::value>{});
+}
+
+template <class Tuple>
+auto tuple_cat_impl(Tuple&& tuple) {
+  return std::forward<Tuple>(tuple);
+}
+
+// 递归合并多个 tuple
+template <class Tuple1, class Tuple2, class... Rest>
+auto tuple_cat_impl(Tuple1&& t1, Tuple2&& t2, Rest&&... rest) {
+  auto first_two_cat =
+      tuple_cat_two_impl(std::forward<Tuple1>(t1), std::forward<Tuple2>(t2));
+  if constexpr (sizeof...(Rest) == 0) {
+    return first_two_cat;
+  } else {
+    return tuple_cat_impl(std::move(first_two_cat),
+                          std::forward<Rest>(rest)...);
+  }
+}
+
+// tuple_cat
+template <class... Tuples>
+TupleCatRValue_t<std::decay_t<Tuples>...> tuple_cat(Tuples&&... tuples) {
+  return tuple_cat_impl(std::forward<Tuples>(tuples)...);
+}
+
 // 根据类型获取 Types 中对应的索引
 template <class T, class... Types>
 struct TypeIndex;
