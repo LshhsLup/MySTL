@@ -207,22 +207,62 @@ class tuple
   tuple(tuple&& other) = default;
 
   // assignment operators
-  tuple& operator=(typename std::conditional<
-                   mystl::is_all_true_v<std::is_copy_assignable, Types...>,
-                   const tuple&, const nonsuch&>::type other) {
+  /*
+   * 下面的写法一个关键的边界情况下会失败：当一个 tuple 的元素类型既不可拷贝赋值，也不可移动赋值时。
+   * 一个典型的例子是 mystl::tie 创建的对 const 变量的引用元组，例如 mystl::tuple<const int&>。
+   *
+   * 在这种情况下：
+   * 1. 对于拷贝赋值运算符：
+   *    - std::is_copy_assignable<const int&>::value 为 false。
+   *    - std::conditional 的结果是 mystl::nonsuch。
+   *    - 运算符的签名变为：tuple& operator=(const mystl::nonsuch&);
+   *
+   * 2. 对于移动赋值运算符：
+   *    - std::is_move_assignable<const int&>::value 也为 false。
+   *    - std::conditional 的结果同样是 mystl::nonsuch。
+   *    - 运算符的签名也变为：tuple& operator=(const mystl::nonsuch&);
+   *
+   * 结果：
+   * 两个运算符都被 SFINAE 机制转换成了具有完全相同的函数签名。这在 C++ 中是不允许的，
+   * 导致了编译器报告“函数重载冲突 (cannot be overloaded)”的错误。
+  */
+  // tuple& operator=(typename std::conditional<
+  //                  mystl::is_all_true_v<std::is_copy_assignable, Types...>,
+  //                  const tuple&, const nonsuch&>::type other) {
+  //   assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
+  //   return *this;
+  // }
+
+  // tuple& operator=(
+  //     typename std::conditional<
+  //         mystl::is_all_true_v<std::is_move_assignable, Types...>, tuple&&,
+  //         const nonsuch&>::type
+  //         other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
+  //                                              Types...>) {
+  //   assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+  //   return *this;
+  // }
+  template <bool B = mystl::is_all_true_v<std::is_copy_assignable, Types...>,
+            typename std::enable_if_t<B, int> = 0>
+  tuple& operator=(const tuple& other) {
     assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
 
-  tuple& operator=(
-      typename std::conditional<
-          mystl::is_all_true_v<std::is_move_assignable, Types...>, tuple&&,
-          const nonsuch&>::type
-          other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
-                                               Types...>) {
+  template <bool B = mystl::is_all_true_v<std::is_copy_assignable, Types...>,
+            typename std::enable_if_t<!B, int> = 0>
+  tuple& operator=(const tuple& other) = delete;
+
+  template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
+            typename std::enable_if_t<B, int> = 0>
+  tuple& operator=(tuple&& other) {
     assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
+
+  template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
+            typename std::enable_if_t<!B, int> = 0>
+  tuple& operator=(tuple&& other) = delete;
 
   template <class... UTypes,
             typename std::enable_if<
@@ -461,9 +501,8 @@ auto tuple_cat_two_impl(Tuple1&& t1, Tuple2&& t2, std::index_sequence<Is1...>,
                         std::index_sequence<Is2...>) {
   using result_type =
       TupleCatRValue_t<std::decay_t<Tuple1>, std::decay_t<Tuple2>>;
-  return result_type(
-      mystl::get<Is1>(std::forward<Tuple1>(t1))...,
-      mystl::get<Is2>(std::forward<Tuple2>(t2))...);
+  return result_type(mystl::get<Is1>(std::forward<Tuple1>(t1))...,
+                     mystl::get<Is2>(std::forward<Tuple2>(t2))...);
 }
 
 template <class Tuple1, class Tuple2>
@@ -621,5 +660,11 @@ template <std::size_t I, class... Types>
 struct tuple_element<I, mystl::tuple<Types...>> {
   using type = mystl::NthType_t<I, Types...>;
 };
+
+// std::swap 特化
+template <class... Types>
+void swap(mystl::tuple<Types...>& lhs, mystl::tuple<Types...>& rhs) noexcept {
+  lhs.swap(rhs);
+}
 }  // namespace std
 #endif

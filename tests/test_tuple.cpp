@@ -368,8 +368,9 @@ TEST(TupleTest, TupleCat) {
 
   // 拼接包含空 tuple
   auto cat2 = mystl::tuple_cat(t1, t3, t4);
-  static_assert(std::is_same<decltype(cat2), mystl::tuple<int, char, long>>::value,
-                "Type mismatch in tuple_cat with empty tuple");
+  static_assert(
+      std::is_same<decltype(cat2), mystl::tuple<int, char, long>>::value,
+      "Type mismatch in tuple_cat with empty tuple");
   EXPECT_EQ(mystl::get<0>(cat2), 1);
   EXPECT_EQ(mystl::get<1>(cat2), 'a');
   EXPECT_EQ(mystl::get<2>(cat2), 100L);
@@ -385,4 +386,338 @@ TEST(TupleTest, TupleCat) {
   EXPECT_EQ(mystl::get<2>(cat3), "hello");
   EXPECT_DOUBLE_EQ(mystl::get<3>(cat3), 3.14);
   EXPECT_EQ(mystl::get<4>(cat3), 100L);
+}
+
+TEST(TupleTest, StdSwap) {
+  mystl::tuple<int, double, char> t1(1, 2.2, 'a');
+  mystl::tuple<int, double, char> t2(99, 8.8, 'z');
+
+  const auto t1_original = t1;
+  const auto t2_original = t2;
+
+  ASSERT_NE(t1, t2);
+
+  std::swap(t1, t2);
+
+  EXPECT_EQ(t1, t2_original);
+  EXPECT_EQ(t2, t1_original);
+
+  mystl::tuple<> t3;
+  mystl::tuple<> t4;
+
+  const auto t3_original = t3;
+  const auto t4_original = t4;
+
+  ASSERT_EQ(t3, t4);
+
+  // 交换空元组应该是一个无操作，且不会导致编译或运行时错误
+  std::swap(t3, t4);
+
+  // 状态应该保持不变
+  EXPECT_EQ(t3, t3_original);
+  EXPECT_EQ(t4, t4_original);
+  EXPECT_EQ(t3, t4);
+}
+
+// from cpprefernece
+TEST(TupleTest, ExampleTest) {
+  // 1. Test Default Constructor (Value Initialization)
+  // Corresponds to: std::tuple<int, std::string, double> t1;
+  {
+    mystl::tuple<int, std::string, double> t1;
+    EXPECT_EQ(mystl::get<0>(t1), 0);
+    EXPECT_EQ(mystl::get<1>(t1), "");
+    EXPECT_EQ(mystl::get<2>(t1), 0.0);
+  }
+
+  // 2. Test Value Constructor
+  // Corresponds to: std::tuple<int, std::string, double> t2{42, "Test", -3.14};
+  {
+    mystl::tuple<int, std::string, double> t2(42, "Test", -3.14);
+    EXPECT_EQ(mystl::get<0>(t2), 42);
+    EXPECT_EQ(mystl::get<1>(t2), "Test");
+    EXPECT_DOUBLE_EQ(mystl::get<2>(t2),
+                     -3.14);  // Use DOUBLE_EQ for floating point
+  }
+
+  // 3. Test Converting Constructor
+  // Corresponds to: std::tuple<char, std::string, int> t3{t2};
+  {
+    mystl::tuple<int, const char*, double> t_source(65, "Test",
+                                                    -3.14);  // 65 is 'A'
+    mystl::tuple<char, std::string, int> t3(t_source);
+    // Test implicit conversions: int->char, const char*->string, double->int
+    EXPECT_EQ(mystl::get<0>(t3), 'A');
+    EXPECT_EQ(mystl::get<1>(t3), "Test");
+    EXPECT_EQ(mystl::get<2>(t3), -3);  // double to int truncation
+  }
+
+  // 4. Test Pair Constructor
+  // Corresponds to: std::tuple<int, double> t4{std::make_pair(42, 3.14)};
+  {
+    mystl::pair<int, double> p = {42, 3.14};
+    mystl::tuple<int, double> t4(p);
+    EXPECT_EQ(mystl::get<0>(t4), 42);
+    EXPECT_DOUBLE_EQ(mystl::get<1>(t4), 3.14);
+  }
+
+  // 6. Test Normal Copy Assignment
+  {
+    mystl::tuple<int, std::string, std::vector<int>> t1{1, "alpha", {1, 2, 3}};
+    mystl::tuple<int, std::string, std::vector<int>> t2{2, "beta", {4, 5}};
+
+    t1 = t2;
+
+    // t1 should now be a copy of t2
+    EXPECT_EQ(mystl::get<0>(t1), 2);
+    EXPECT_EQ(mystl::get<1>(t1), "beta");
+    EXPECT_EQ(mystl::get<2>(t1), (std::vector<int>{4, 5}));
+    // t2 should be unchanged
+    EXPECT_EQ(mystl::get<0>(t2), 2);
+    EXPECT_EQ(mystl::get<1>(t2), "beta");
+    EXPECT_EQ(mystl::get<2>(t2), (std::vector<int>{4, 5}));
+  }
+
+  // 7. Test Normal Move Assignment
+  {
+    mystl::tuple<int, std::string, std::vector<int>> t1{1, "alpha", {1, 2, 3}};
+    mystl::tuple<int, std::string, std::vector<int>> t2{2, "beta", {4, 5}};
+
+    t1 = std::move(t2);
+
+    // t1 should now have the values of t2
+    EXPECT_EQ(mystl::get<0>(t1), 2);
+    EXPECT_EQ(mystl::get<1>(t1), "beta");
+    EXPECT_EQ(mystl::get<2>(t1), (std::vector<int>{4, 5}));
+    // t2 is in a valid but unspecified state. For std::string and std::vector,
+    // this typically means empty. The int is trivially copyable, so it's unchanged.
+    EXPECT_EQ(mystl::get<0>(t2), 2);
+    EXPECT_EQ(mystl::get<1>(t2), "");
+    EXPECT_TRUE(mystl::get<2>(t2).empty());
+  }
+
+  // 8. Test Converting Copy Assignment
+  {
+    mystl::tuple<int, std::string, std::vector<int>> t1;
+    mystl::tuple<short, const char*, std::vector<int>> t3{
+        3, "gamma", {6, 7, 8}};
+
+    t1 = t3;
+
+    EXPECT_EQ(mystl::get<0>(t1), 3);
+    EXPECT_EQ(mystl::get<1>(t1), "gamma");
+    EXPECT_EQ(mystl::get<2>(t1), (std::vector<int>{6, 7, 8}));
+    // Source t3 should be unchanged
+    EXPECT_EQ(mystl::get<0>(t3), 3);
+    EXPECT_STREQ(mystl::get<1>(t3), "gamma");  // Use STREQ for const char*
+  }
+
+  // 9. Test Converting Move Assignment
+  {
+    mystl::tuple<int, std::string, std::vector<int>> t1;
+    mystl::tuple<short, const char*, std::vector<int>> t3{
+        3, "gamma", {6, 7, 8}};
+
+    t1 = std::move(t3);
+
+    EXPECT_EQ(mystl::get<0>(t1), 3);
+    EXPECT_EQ(mystl::get<1>(t1), "gamma");
+    EXPECT_EQ(mystl::get<2>(t1), (std::vector<int>{6, 7, 8}));
+  }
+
+  // 10. Test Copy Assignment from Pair
+  {
+    mystl::tuple<std::string, std::vector<int>> t4{"delta", {10, 11, 12}};
+    mystl::pair<const char*, std::vector<int>> p1{"epsilon", {14, 15}};
+
+    t4 = p1;
+
+    EXPECT_EQ(mystl::get<0>(t4), "epsilon");
+    EXPECT_EQ(mystl::get<1>(t4), (std::vector<int>{14, 15}));
+    // Source pair p1 should be unchanged
+    EXPECT_STREQ(p1.first, "epsilon");
+    EXPECT_EQ(p1.second, (std::vector<int>{14, 15}));
+  }
+
+  // 11. Test Move Assignment from Pair
+  {
+    mystl::tuple<std::string, std::vector<int>> t4{"delta", {10, 11, 12}};
+    mystl::pair<const char*, std::vector<int>> p1{"epsilon", {14, 15}};
+
+    t4 = std::move(p1);
+
+    EXPECT_EQ(mystl::get<0>(t4), "epsilon");
+    EXPECT_EQ(mystl::get<1>(t4), (std::vector<int>{14, 15}));
+    // The vector in p1 should be moved from (empty)
+    EXPECT_TRUE(p1.second.empty());
+  }
+
+  {
+    // --- Test make_tuple and std::ref ---
+    int n = 1;
+    auto t = mystl::make_tuple(10, "Test", 3.14, std::ref(n), n);
+
+    // Initial check
+    EXPECT_EQ(mystl::get<0>(t), 10);
+    EXPECT_STREQ(mystl::get<1>(t), "Test");
+    EXPECT_DOUBLE_EQ(mystl::get<2>(t), 3.14);
+    EXPECT_EQ(mystl::get<3>(t), 1);
+    EXPECT_EQ(mystl::get<4>(t), 1);
+
+    // Modify n and check if the reference in the tuple reflects the change
+    n = 7;
+    EXPECT_EQ(mystl::get<3>(t), 7);  // The reference should see the new value
+    EXPECT_EQ(mystl::get<4>(t), 1);  // The copy should not change
+
+    // --- Test tie with a function return ---
+    auto f = []() -> mystl::tuple<int, int> {
+      return mystl::make_tuple(5, 7);
+    };
+    int a, b;
+    mystl::tie(a, b) = f();
+    EXPECT_EQ(a, 5);
+    EXPECT_EQ(b, 7);
+  }
+
+  {
+    // --- Test tie for lexicographical comparison ---
+    struct S {
+      int n;
+      std::string s;
+      float d;
+      // Comparison operator will be defined outside the struct
+    };
+    // Define operator< for S at function scope
+    auto s_less = [](const S& lhs, const S& rhs) noexcept {
+      return mystl::tie(lhs.n, lhs.s, lhs.d) < mystl::tie(rhs.n, rhs.s, rhs.d);
+    };
+    std::set<S, decltype(s_less)> set_of_s(s_less);
+    S value{42, "Test", 3.14};
+    auto [iter, is_inserted] = set_of_s.insert(value);
+    ASSERT_TRUE(is_inserted);
+
+    // --- Test tie for unpacking and structured bindings ---
+    auto position = [](int w) {
+      return mystl::make_tuple(1 * w, 2 * w);
+    };
+    auto [x, y] = position(1);
+    ASSERT_EQ(x, 1);
+    ASSERT_EQ(y, 2);
+
+    mystl::tie(x, y) = position(2);  // Reuse variables with tie
+    ASSERT_EQ(x, 2);
+    ASSERT_EQ(y, 4);
+
+    // --- Test tie with implicit conversion ---
+    mystl::tuple<char, short> coordinates('a', 9);
+    mystl::tie(x, y) = coordinates;
+    ASSERT_EQ(x, 'a');
+    ASSERT_EQ(y, 9);
+
+    // --- Test tie with std::ignore ---
+    std::string z;
+    mystl::tie(x, std::ignore, z) = mystl::make_tuple(1, 2.0, "Test");
+    ASSERT_EQ(x, 1);
+    ASSERT_EQ(z, "Test");
+  }
+
+  {
+    std::map<int, std::string> m;
+
+    // This relies on the map's emplace correctly using the tuples we provide.
+    m.emplace(std::piecewise_construct, mystl::forward_as_tuple(6),
+              mystl::forward_as_tuple(9, 'g'));
+
+    ASSERT_EQ(m.size(), 1);
+    EXPECT_EQ(m.at(6), std::string(9, 'g'));  // "ggggggggg"
+  }
+
+  {
+    mystl::tuple<int, std::string, float> t1(10, "Test", 3.14);
+    int n = 7;
+
+    // Concatenate multiple tuples, including one created from a reference via tie
+    auto t2 = mystl::tuple_cat(t1, mystl::make_tuple("Foo", "bar"), t1,
+                               mystl::tie(n));
+
+    // Change n AFTER concatenation. The reference in t2 should update.
+    n = 42;
+
+    // Check the structure and values of the concatenated tuple
+    // t1 + ("Foo", "bar") + t1 + tie(n)
+    // (int, string, float, const char*, const char*, int, string, float, int&)
+    EXPECT_EQ(mystl::get<0>(t2), 10);
+    EXPECT_EQ(mystl::get<1>(t2), "Test");
+    EXPECT_FLOAT_EQ(mystl::get<2>(t2), 3.14f);
+    EXPECT_STREQ(mystl::get<3>(t2), "Foo");
+    EXPECT_STREQ(mystl::get<4>(t2), "bar");
+    EXPECT_EQ(mystl::get<5>(t2), 10);
+    EXPECT_EQ(mystl::get<6>(t2), "Test");
+    EXPECT_FLOAT_EQ(mystl::get<7>(t2), 3.14f);
+    EXPECT_EQ(mystl::get<8>(t2), 42);  // Check the reference
+  }
+
+  {
+    auto x = mystl::make_tuple(1, "Foo", 3.14);
+
+    // Index-based access
+    EXPECT_EQ(mystl::get<0>(x), 1);
+    EXPECT_STREQ(mystl::get<1>(x), "Foo");
+    EXPECT_DOUBLE_EQ(mystl::get<2>(x), 3.14);
+
+    // Type-based access (C++14 feature)
+    EXPECT_EQ(mystl::get<int>(x), 1);
+    EXPECT_STREQ(mystl::get<const char*>(x), "Foo");
+    EXPECT_DOUBLE_EQ(mystl::get<double>(x), 3.14);
+
+    // The ambiguity check is a compile-time error, so we can't test it directly.
+    // We can only note it in a comment.
+    // const mystl::tuple<int, double, double> y(1, 6.9, 9.6);
+    // const double& d = mystl::get<double>(y); // This line should fail to compile.
+  }
+
+  {
+    std::vector<mystl::tuple<int, std::string, float>> v{
+        {2, "baz", -0.1f},
+        {2, "bar", 3.14f},
+        {1, "foo", 10.1f},
+        {2, "baz", -1.1f},
+    };
+
+    // This call requires mystl::tuple::operator< to be correctly implemented.
+    std::sort(v.begin(), v.end());
+
+    std::vector<mystl::tuple<int, std::string, float>> expected_sorted_v{
+        {1, "foo", 10.1f},
+        {2, "bar", 3.14f},
+        {2, "baz", -1.1f},  // -1.1 comes before -0.1
+        {2, "baz", -0.1f},
+    };
+
+    // This check requires mystl::tuple::operator== to be correctly implemented.
+    ASSERT_EQ(v.size(), expected_sorted_v.size());
+    for (size_t i = 0; i < v.size(); ++i) {
+      EXPECT_EQ(mystl::get<0>(v[i]), mystl::get<0>(expected_sorted_v[i]));
+      EXPECT_EQ(mystl::get<1>(v[i]), mystl::get<1>(expected_sorted_v[i]));
+      EXPECT_FLOAT_EQ(mystl::get<2>(v[i]), mystl::get<2>(expected_sorted_v[i]));
+    }
+  }
+
+  {
+    mystl::tuple<int, std::string, float> p1{42, "ABCD", 2.71f};
+    mystl::tuple<int, std::string, float> p2{10, "1234", 3.14f};
+
+    auto p1_original = p1;
+    auto p2_original = p2;
+
+    // Test member swap
+    p1.swap(p2);
+    EXPECT_EQ(mystl::get<0>(p1), mystl::get<0>(p2_original));
+    EXPECT_EQ(mystl::get<0>(p2), mystl::get<0>(p1_original));
+
+    // Test non-member swap (should swap them back)
+    swap(p1, p2);  // ADL will find mystl::swap
+    EXPECT_EQ(mystl::get<0>(p1), mystl::get<0>(p1_original));
+    EXPECT_EQ(mystl::get<0>(p2), mystl::get<0>(p2_original));
+  }
 }
