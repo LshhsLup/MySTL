@@ -361,7 +361,7 @@ TEST(PairTest, Swap) {
   EXPECT_EQ(p2.second, "one");
 
   // Non-member swap
-  mystl::swap(p1, p2);
+  std::swap(p1, p2);
   EXPECT_EQ(p1.first, 1);
   EXPECT_EQ(p1.second, "one");
   EXPECT_EQ(p2.first, 2);
@@ -474,7 +474,7 @@ TEST(PairTest, PairSwapAndGet) {
   EXPECT_EQ(mystl::get<1>(p3), 1.23);
   EXPECT_EQ(mystl::get<0>(p4), 10);
   EXPECT_EQ(mystl::get<1>(p4), 3.14);
-  mystl::swap(p3, p4);
+  std::swap(p3, p4);
   EXPECT_EQ(mystl::get<0>(p3), 10);
   EXPECT_EQ(mystl::get<1>(p3), 3.14);
   EXPECT_EQ(mystl::get<0>(p4), 12);

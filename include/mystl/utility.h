@@ -247,11 +247,6 @@ constexpr bool operator>=(const mystl::pair<T1, T2>& lhs,
   return !(lhs < rhs);
 }
 
-template <class T1, class T2>
-void swap(pair<T1, T2>& x, pair<T1, T2>& y) noexcept(noexcept(x.swap(y))) {
-  x.swap(y);
-}
-
 template <std::size_t I>
 struct pair_get;
 
@@ -390,5 +385,11 @@ struct tuple_element<1, mystl::pair<T1, T2>> {
 template <class T1, class T2>
 struct tuple_size<mystl::pair<T1, T2>>
     : std::integral_constant<std::size_t, 2> {};
+
+// specialize std::swap
+template <class T1, class T2>
+void swap(pair<T1, T2>& x, pair<T1, T2>& y) noexcept(noexcept(x.swap(y))) {
+  x.swap(y);
+}
 }  // namespace std
 #endif
