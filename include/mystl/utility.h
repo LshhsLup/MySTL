@@ -134,7 +134,8 @@ struct pair {
                     std::is_convertible<U2, T2>::value,
                 int>::type>
   constexpr pair(pair<U1, U2>&& p)
-      : first(mystl::forward<U1>(p.first)), second(mystl::forward<U2>(p.second)) {}
+      : first(mystl::forward<U1>(p.first)),
+        second(mystl::forward<U2>(p.second)) {}
 
   template <class U1, class U2,
             typename std::enable_if<std::is_constructible<T1, U1>::value &&
@@ -143,7 +144,8 @@ struct pair {
                                          !std::is_convertible<U2, T2>::value),
                                     char>::type = 0>
   explicit constexpr pair(pair<U1, U2>&& p)
-      : first(mystl::forward<U1>(p.first)), second(mystl::forward<U2>(p.second)) {}
+      : first(mystl::forward<U1>(p.first)),
+        second(mystl::forward<U2>(p.second)) {}
 
   // 为了避免循环依赖，将实现放在 tuple.h 中
   template <class... Args1, class... Args2>

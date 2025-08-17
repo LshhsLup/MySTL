@@ -205,8 +205,8 @@ class tuple
                                                 mystl::tuple<UTypes...>&&>,
                 int>::type = 0>
   constexpr tuple(tuple<UTypes...>&& other)
-      : tuple(mystl::move(other), std::make_index_sequence<sizeof...(UTypes)>{}) {
-  }
+      : tuple(mystl::move(other),
+              std::make_index_sequence<sizeof...(UTypes)>{}) {}
 
   template <class U1, class U2,
             typename std::enable_if<
@@ -279,7 +279,8 @@ class tuple
           const nonsuch_move&>::type
           other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
                                                Types...>) {
-    assign_from(mystl::move(other), std::make_index_sequence<sizeof...(Types)>{});
+    assign_from(mystl::move(other),
+                std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
   /*
@@ -330,7 +331,8 @@ class tuple
                                                  mystl::TypeLists<UTypes...>>,
                 int>::type = 0>
   tuple& operator=(tuple<UTypes...>&& other) {
-    assign_from(mystl::move(other), std::make_index_sequence<sizeof...(Types)>{});
+    assign_from(mystl::move(other),
+                std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
 
@@ -373,9 +375,9 @@ class tuple
   template <class OtherTuple, std::size_t... Is>
   void assign_from(OtherTuple&& other, std::index_sequence<Is...>) {
     // C++11/14 not support fold expression
-    (void)(std::initializer_list<int>{(
-        mystl::get<Is>(*this) = mystl::get<Is>(mystl::forward<OtherTuple>(other)),
-        0)...});
+    (void)(std::initializer_list<int>{(mystl::get<Is>(*this) = mystl::get<Is>(
+                                           mystl::forward<OtherTuple>(other)),
+                                       0)...});
     // C++17 可用折叠表达式代替
     // (mystl::get<Is>(*this) = mystl::get<Is>(mystl::forward<OtherTuple>(other)), ...);
   }
@@ -567,8 +569,8 @@ auto tuple_cat_impl(Tuple&& tuple) {
 // 递归合并多个 tuple
 template <class Tuple1, class Tuple2, class... Rest>
 auto tuple_cat_impl(Tuple1&& t1, Tuple2&& t2, Rest&&... rest) {
-  auto first_two_cat =
-      tuple_cat_two_impl(mystl::forward<Tuple1>(t1), mystl::forward<Tuple2>(t2));
+  auto first_two_cat = tuple_cat_two_impl(mystl::forward<Tuple1>(t1),
+                                          mystl::forward<Tuple2>(t2));
   if constexpr (sizeof...(Rest) == 0) {
     return first_two_cat;
   } else {

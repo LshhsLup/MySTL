@@ -233,13 +233,13 @@ TEST(PairTest, Constructors) {
   // 7. 移动构造函数 (使用 move-only 类型测试)
   {
     auto uptr = std::make_unique<int>(100);
-    mystl::pair<std::unique_ptr<int>, int> p1(std::move(uptr), 200);
+    mystl::pair<std::unique_ptr<int>, int> p1(mystl::move(uptr), 200);
 
     EXPECT_NE(p1.first, nullptr);
     EXPECT_EQ(*p1.first, 100);
     EXPECT_EQ(p1.second, 200);
 
-    mystl::pair<std::unique_ptr<int>, int> p2(std::move(p1));
+    mystl::pair<std::unique_ptr<int>, int> p2(mystl::move(p1));
 
     // 检查 p2 是否接管了资源
     EXPECT_NE(p2.first, nullptr);
@@ -262,7 +262,7 @@ TEST(PairTest, Constructors) {
   {
     mystl::pair<std::unique_ptr<int>, std::string> p1(std::make_unique<int>(10),
                                                       "ten");
-    mystl::pair<std::unique_ptr<int>, std::string> p2(std::move(p1));
+    mystl::pair<std::unique_ptr<int>, std::string> p2(mystl::move(p1));
 
     EXPECT_NE(p2.first, nullptr);
     EXPECT_EQ(p2.second, "ten");
@@ -284,7 +284,7 @@ TEST(PairTest, Assignment) {
   {
     mystl::pair<std::unique_ptr<int>, int> p1(std::make_unique<int>(10), 1);
     mystl::pair<std::unique_ptr<int>, int> p2;
-    p2 = std::move(p1);
+    p2 = mystl::move(p1);
 
     EXPECT_NE(p2.first, nullptr);
     EXPECT_EQ(*p2.first, 10);
@@ -305,7 +305,7 @@ TEST(PairTest, Assignment) {
     mystl::pair<std::unique_ptr<int>, std::string> p1(std::make_unique<int>(10),
                                                       "ten");
     mystl::pair<std::unique_ptr<int>, std::string> p2;
-    p2 = std::move(p1);
+    p2 = mystl::move(p1);
 
     EXPECT_NE(p2.first, nullptr);
     EXPECT_EQ(p2.second, "ten");
@@ -436,14 +436,14 @@ TEST(PairTest, AssignOperator) {
   std::vector<int> v2{7, 8, 9};
   EXPECT_EQ(p.second, v2);
   p = mystl::pair<int, std::vector<int>>{3, {4}};
-  p = std::move(q);
+  p = mystl::move(q);
   EXPECT_EQ(p.first, 2);
   EXPECT_EQ(p.second, v1);
   EXPECT_EQ(q.first, 2);
   std::vector<int> v3{};
   EXPECT_EQ(q.second, v3);
   p = mystl::pair<int, std::vector<int>>{5, {6}};
-  p = std::move(r);
+  p = mystl::move(r);
   EXPECT_EQ(p.first, 4);
   EXPECT_EQ(p.second, v2);
   EXPECT_EQ(r.first, 4);
