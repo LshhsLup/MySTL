@@ -11,6 +11,9 @@ namespace mystl {
 //===========================================================
 //======================    pair    =========================
 //===========================================================
+template <class... Args>
+class tuple;
+
 template <class T1, class T2>
 struct pair {
   // member types
@@ -121,6 +124,17 @@ struct pair {
   explicit constexpr pair(pair<U1, U2>&& p)
       : first(std::forward<U1>(p.first)), second(std::forward<U2>(p.second)) {}
 
+  // 为了避免循环依赖，将实现放在 tuple.h 中
+  template <class... Args1, class... Args2>
+  pair(std::piecewise_construct_t, mystl::tuple<Args1...> first_args,
+       mystl::tuple<Args2...> second_args);
+
+ private:
+  template <class Tuple1, class Tuple2, std::size_t... Is1, std::size_t... Is2>
+  pair(std::piecewise_construct_t, Tuple1&& tuple1, Tuple2&& tuple2,
+       std::index_sequence<Is1...>, std::index_sequence<Is2...>);
+
+ public:
   pair(const pair&) = default;
   pair(pair&&) = default;
 
