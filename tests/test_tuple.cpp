@@ -13,8 +13,8 @@ struct test_map {
                mystl::tuple<ValueArgs...>&& value_tuple) {
     data.push_back(mystl::pair<int, std::string>(
         std::piecewise_construct,
-        std::forward<mystl::tuple<KeyArgs...>>(key_tuple),
-        std::forward<mystl::tuple<ValueArgs...>>(value_tuple)));
+        mystl::forward<mystl::tuple<KeyArgs...>>(key_tuple),
+        mystl::forward<mystl::tuple<ValueArgs...>>(value_tuple)));
   }
 
   size_t size() const { return data.size(); }
@@ -61,7 +61,7 @@ TEST(TupleTest, CopyAndMoveConstructors) {
   mystl::tuple<int, std::unique_ptr<std::string>> t3(
       456, std::make_unique<std::string>("move me"));
   mystl::tuple<int, std::unique_ptr<std::string>> t4(
-      std::move(t3));  // 移动构造
+      mystl::move(t3));  // 移动构造
 
   EXPECT_EQ(mystl::get<0>(t4), 456);
   EXPECT_NE(mystl::get<1>(t4), nullptr);
@@ -90,9 +90,9 @@ TEST(TupleTest, ConvertingConstructors) {
 
   // 3. 使用 move-only 类型测试 rvalue 转换构造
   auto source_ptr = std::make_unique<int>(100);
-  mystl::tuple<std::unique_ptr<int>> t_source3(std::move(source_ptr));
+  mystl::tuple<std::unique_ptr<int>> t_source3(mystl::move(source_ptr));
   // 从 tuple<unique_ptr<int>> 移动构造成 tuple<unique_ptr<const int>>
-  mystl::tuple<std::unique_ptr<const int>> t_dest3(std::move(t_source3));
+  mystl::tuple<std::unique_ptr<const int>> t_dest3(mystl::move(t_source3));
 
   ASSERT_NE(mystl::get<0>(t_dest3), nullptr);
   EXPECT_EQ(*mystl::get<0>(t_dest3), 100);
@@ -131,7 +131,7 @@ TEST(TupleTest, PairConstructors) {
 
   // 3. 从 rvalue mystl::pair 构造 (移动转换)
   mystl::pair<int, std::unique_ptr<int>> p3(500, std::make_unique<int>(600));
-  mystl::tuple<long, std::unique_ptr<int>> t3(std::move(p3));
+  mystl::tuple<long, std::unique_ptr<int>> t3(mystl::move(p3));
 
   EXPECT_EQ(mystl::get<0>(t3), 500L);
   ASSERT_NE(mystl::get<1>(t3), nullptr);
@@ -150,7 +150,7 @@ TEST(TupleTest, AssignOperators) {
 
   // 2. 同类型 move assign
   mystl::tuple<int, std::string> t3;
-  t3 = std::move(t1);
+  t3 = mystl::move(t1);
   EXPECT_EQ(mystl::get<0>(t3), 1);
   EXPECT_EQ(mystl::get<1>(t3), "hello");
 
@@ -164,7 +164,7 @@ TEST(TupleTest, AssignOperators) {
   // 4. 不同类型 move assign
   mystl::tuple<long, std::string> t6(99, "world");
   mystl::tuple<int, std::string> t7;
-  t7 = std::move(t6);
+  t7 = mystl::move(t6);
   EXPECT_EQ(mystl::get<0>(t7), 99);
   EXPECT_EQ(mystl::get<1>(t7), "world");
 
@@ -178,7 +178,7 @@ TEST(TupleTest, AssignOperators) {
   // 6. 从 pair move assign
   mystl::pair<int, std::string> p2(88, "move");
   mystl::tuple<int, std::string> t9;
-  t9 = std::move(p2);
+  t9 = mystl::move(p2);
   EXPECT_EQ(mystl::get<0>(t9), 88);
   EXPECT_EQ(mystl::get<1>(t9), "move");
 }
@@ -351,7 +351,7 @@ TEST(TupleTest, ForwardAsTuple) {
   EXPECT_DOUBLE_EQ(mystl::get<1>(t1), 4.125);
 
   int a = 10;
-  auto t2 = std::forward_as_tuple(a, 20);
+  auto t2 = mystl::forward_as_tuple(a, 20);
   // 第一个是左值引用，第二个是右值引用
   static_assert(std::is_same<typename std::tuple_element<0, decltype(t2)>::type,
                              int&>::value,
@@ -360,7 +360,7 @@ TEST(TupleTest, ForwardAsTuple) {
                              int&&>::value,
                 "Should be int&&");
   // 修改第一个
-  std::get<0>(t2) = 99;
+  mystl::get<0>(t2) = 99;
   EXPECT_EQ(a, 99);
   // 第二个是右值，不能直接用来修改原值（原值已经是临时对象）
   // 未定义行为， 20 这个临时对象在构造的时候就已经被销毁了
@@ -505,7 +505,7 @@ TEST(TupleTest, ExampleTest) {
     mystl::tuple<int, std::string, std::vector<int>> t1{1, "alpha", {1, 2, 3}};
     mystl::tuple<int, std::string, std::vector<int>> t2{2, "beta", {4, 5}};
 
-    t1 = std::move(t2);
+    t1 = mystl::move(t2);
 
     // t1 should now have the values of t2
     EXPECT_EQ(mystl::get<0>(t1), 2);
@@ -540,7 +540,7 @@ TEST(TupleTest, ExampleTest) {
     mystl::tuple<short, const char*, std::vector<int>> t3{
         3, "gamma", {6, 7, 8}};
 
-    t1 = std::move(t3);
+    t1 = mystl::move(t3);
 
     EXPECT_EQ(mystl::get<0>(t1), 3);
     EXPECT_EQ(mystl::get<1>(t1), "gamma");
@@ -566,7 +566,7 @@ TEST(TupleTest, ExampleTest) {
     mystl::tuple<std::string, std::vector<int>> t4{"delta", {10, 11, 12}};
     mystl::pair<const char*, std::vector<int>> p1{"epsilon", {14, 15}};
 
-    t4 = std::move(p1);
+    t4 = mystl::move(p1);
 
     EXPECT_EQ(mystl::get<0>(t4), "epsilon");
     EXPECT_EQ(mystl::get<1>(t4), (std::vector<int>{14, 15}));

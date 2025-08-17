@@ -67,7 +67,7 @@ struct TupleLeaf {
   constexpr TupleLeaf() = default;
 
   template <class U>
-  constexpr TupleLeaf(U&& x) : value(std::forward<U>(x)) {}
+  constexpr TupleLeaf(U&& x) : value(mystl::forward<U>(x)) {}
 
   // get(), 方便特化 tuple 的 get
   constexpr T& get() & noexcept { return value; }
@@ -75,31 +75,31 @@ struct TupleLeaf {
   constexpr const T& get() const& noexcept { return value; }
 
   /*
-   * FIX: 将 std::move(value) 修改为 std::forward<T>(value)。
+   * FIX: 将 mystl::move(value) 修改为 mystl::forward<T>(value)。
    *
    * REASON: 当模板参数 T 本身是引用类型（例如 int&，常见于 mystl::tie 创建的 tuple）时，
-   * `std::move` 会导致编译错误。
+   * `mystl::move` 会导致编译错误。
    *
    * 以 T = int& 为例来分析问题：
    * 1. 函数返回类型：T&& 经过引用折叠 (int& &&) 变为 int&。所以函数期望返回一个左值引用。
    * 2. 成员变量类型：`value` 的类型是 T，即 int&。
-   * 3. `std::move(value)` 的结果：`std::move` 会无条件地将 `value` 转换为右值引用，
+   * 3. `mystl::move(value)` 的结果：`mystl::move` 会无条件地将 `value` 转换为右值引用，
    *    其结果表达式的类型是 `std::remove_reference_t<int&>&&`，即 `int&&`。
    * 4. 产生冲突：函数试图返回一个类型为 `int&&` 的右值，但其声明的返回类型却是 `int&`。
    *    将一个右值绑定到一个非 const 左值引用是不允许的，因此编译器报错。
    *
-   * SOLUTION: `std::forward<T>` 是一个条件转换。
-   * - 当 T 是引用类型（如 int&）时，`std::forward<int&>(value)` 会返回一个左值引用 `int&`。
-   * - 当 T 是值类型（如 int）时，`std::forward<int>(value)` 会返回一个右值引用 `int&&`。
+   * SOLUTION: `mystl::forward<T>` 是一个条件转换。
+   * - 当 T 是引用类型（如 int&）时，`mystl::forward<int&>(value)` 会返回一个左值引用 `int&`。
+   * - 当 T 是值类型（如 int）时，`mystl::forward<int>(value)` 会返回一个右值引用 `int&&`。
    *
    * 这完美地匹配了函数返回类型在不同 T 的情况下的需求，实现了正确的完美转发。
    */
-  // constexpr T&& get() && noexcept { return std::move(value); }
-  // constexpr const T&& get() const&& noexcept { return std::move(value); }
-  constexpr T&& get() && noexcept { return std::forward<T>(value); }
+  // constexpr T&& get() && noexcept { return mystl::move(value); }
+  // constexpr const T&& get() const&& noexcept { return mystl::move(value); }
+  constexpr T&& get() && noexcept { return mystl::forward<T>(value); }
 
   constexpr const T&& get() const&& noexcept {
-    return std::forward<const T>(value);
+    return mystl::forward<const T>(value);
   }
 };
 
@@ -113,7 +113,7 @@ struct TupleImpl<std::index_sequence<Is...>, Types...>
 
   template <class... Args>
   constexpr TupleImpl(Args&&... args)
-      : TupleLeaf<Is, Types>(std::forward<Args>(args))... {}
+      : TupleLeaf<Is, Types>(mystl::forward<Args>(args))... {}
 };
 
 // get 前向声明
@@ -181,7 +181,7 @@ class tuple
                !std::is_same<tuple<Types...>, typename std::decay<NthType_t<
                                                   0, UTypes...>>::type>::value),
           int>::type = 0>
-  constexpr tuple(UTypes&&... args) : Base(std::forward<UTypes>(args)...) {}
+  constexpr tuple(UTypes&&... args) : Base(mystl::forward<UTypes>(args)...) {}
 
   template <class... UTypes,
             typename std::enable_if<
@@ -205,7 +205,7 @@ class tuple
                                                 mystl::tuple<UTypes...>&&>,
                 int>::type = 0>
   constexpr tuple(tuple<UTypes...>&& other)
-      : tuple(std::move(other), std::make_index_sequence<sizeof...(UTypes)>{}) {
+      : tuple(mystl::move(other), std::make_index_sequence<sizeof...(UTypes)>{}) {
   }
 
   template <class U1, class U2,
@@ -225,7 +225,7 @@ class tuple
                                                  mystl::TypeLists<U1&&, U2&&>>,
                 int>::type = 0>
   constexpr tuple(mystl::pair<U1, U2>&& p)
-      : Base(std::move(p.first), std::move(p.second)) {}
+      : Base(mystl::move(p.first), mystl::move(p.second)) {}
 
   tuple(const tuple& other) = default;
   tuple(tuple&& other) = default;
@@ -263,7 +263,7 @@ class tuple
   //         const nonsuch&>::type
   //         other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
   //                                              Types...>) {
-  //   assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+  //   assign_from(mystl::move(other), std::make_index_sequence<sizeof...(Types)>{});
   //   return *this;
   // }
   tuple& operator=(typename std::conditional<
@@ -279,7 +279,7 @@ class tuple
           const nonsuch_move&>::type
           other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
                                                Types...>) {
-    assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+    assign_from(mystl::move(other), std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
   /*
@@ -302,7 +302,7 @@ class tuple
   // template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
   //           typename std::enable_if_t<B, int> = 0>
   // tuple& operator=(tuple&& other) {
-  //   assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+  //   assign_from(mystl::move(other), std::make_index_sequence<sizeof...(Types)>{});
   //   return *this;
   // }
 
@@ -330,7 +330,7 @@ class tuple
                                                  mystl::TypeLists<UTypes...>>,
                 int>::type = 0>
   tuple& operator=(tuple<UTypes...>&& other) {
-    assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+    assign_from(mystl::move(other), std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
 
@@ -355,8 +355,8 @@ class tuple
                                                  mystl::TypeLists<E1, E2>>,
                 int>::type = 0>
   tuple& operator=(mystl::pair<E1, E2>&& p) {
-    mystl::get<0>(*this) = std::move(p.first);
-    mystl::get<1>(*this) = std::move(p.second);
+    mystl::get<0>(*this) = mystl::move(p.first);
+    mystl::get<1>(*this) = mystl::move(p.second);
     return *this;
   }
 
@@ -368,16 +368,16 @@ class tuple
  private:
   template <class OtherTuple, std::size_t... Is>
   constexpr tuple(OtherTuple&& other, std::index_sequence<Is...>)
-      : Base(mystl::get<Is>(std::forward<OtherTuple>(other))...) {}
+      : Base(mystl::get<Is>(mystl::forward<OtherTuple>(other))...) {}
 
   template <class OtherTuple, std::size_t... Is>
   void assign_from(OtherTuple&& other, std::index_sequence<Is...>) {
     // C++11/14 not support fold expression
     (void)(std::initializer_list<int>{(
-        mystl::get<Is>(*this) = mystl::get<Is>(std::forward<OtherTuple>(other)),
+        mystl::get<Is>(*this) = mystl::get<Is>(mystl::forward<OtherTuple>(other)),
         0)...});
     // C++17 可用折叠表达式代替
-    // (mystl::get<Is>(*this) = mystl::get<Is>(std::forward<OtherTuple>(other)), ...);
+    // (mystl::get<Is>(*this) = mystl::get<Is>(mystl::forward<OtherTuple>(other)), ...);
   }
 
   template <std::size_t... Is>
@@ -413,7 +413,7 @@ using return_types_tuple =
 // make_tuple
 template <class... Types>
 return_types_tuple<Types...> make_tuple(Types&&... args) {
-  return return_types_tuple<Types...>(std::forward<Types>(args)...);
+  return return_types_tuple<Types...>(mystl::forward<Types>(args)...);
 }
 
 // ignore
@@ -510,7 +510,7 @@ bool operator>=(const mystl::tuple<TTypes...>& lhs,
 // forward_as_tuple
 template <class... Types>
 mystl::tuple<Types&&...> forward_as_tuple(Types&&... args) noexcept {
-  return mystl::tuple<Types&&...>(std::forward<Types>(args)...);
+  return mystl::tuple<Types&&...>(mystl::forward<Types>(args)...);
 }
 
 // 合并两个 tuple
@@ -547,40 +547,40 @@ auto tuple_cat_two_impl(Tuple1&& t1, Tuple2&& t2, std::index_sequence<Is1...>,
                         std::index_sequence<Is2...>) {
   using result_type =
       TupleCatRValue_t<std::decay_t<Tuple1>, std::decay_t<Tuple2>>;
-  return result_type(mystl::get<Is1>(std::forward<Tuple1>(t1))...,
-                     mystl::get<Is2>(std::forward<Tuple2>(t2))...);
+  return result_type(mystl::get<Is1>(mystl::forward<Tuple1>(t1))...,
+                     mystl::get<Is2>(mystl::forward<Tuple2>(t2))...);
 }
 
 template <class Tuple1, class Tuple2>
 auto tuple_cat_two_impl(Tuple1&& t1, Tuple2&& t2) {
   return tuple_cat_two_impl(
-      std::forward<Tuple1>(t1), std::forward<Tuple2>(t2),
+      mystl::forward<Tuple1>(t1), mystl::forward<Tuple2>(t2),
       std::make_index_sequence<std::tuple_size<std::decay_t<Tuple1>>::value>{},
       std::make_index_sequence<std::tuple_size<std::decay_t<Tuple2>>::value>{});
 }
 
 template <class Tuple>
 auto tuple_cat_impl(Tuple&& tuple) {
-  return std::forward<Tuple>(tuple);
+  return mystl::forward<Tuple>(tuple);
 }
 
 // 递归合并多个 tuple
 template <class Tuple1, class Tuple2, class... Rest>
 auto tuple_cat_impl(Tuple1&& t1, Tuple2&& t2, Rest&&... rest) {
   auto first_two_cat =
-      tuple_cat_two_impl(std::forward<Tuple1>(t1), std::forward<Tuple2>(t2));
+      tuple_cat_two_impl(mystl::forward<Tuple1>(t1), mystl::forward<Tuple2>(t2));
   if constexpr (sizeof...(Rest) == 0) {
     return first_two_cat;
   } else {
-    return tuple_cat_impl(std::move(first_two_cat),
-                          std::forward<Rest>(rest)...);
+    return tuple_cat_impl(mystl::move(first_two_cat),
+                          mystl::forward<Rest>(rest)...);
   }
 }
 
 // tuple_cat
 template <class... Tuples>
 TupleCatRValue_t<std::decay_t<Tuples>...> tuple_cat(Tuples&&... tuples) {
-  return tuple_cat_impl(std::forward<Tuples>(tuples)...);
+  return tuple_cat_impl(mystl::forward<Tuples>(tuples)...);
 }
 
 // 根据类型获取 Types 中对应的索引
@@ -700,16 +700,16 @@ pair<T1, T2>::pair(std::piecewise_construct_t,
                    mystl::tuple<Args1...> first_args,
                    mystl::tuple<Args2...> second_args)
     : pair(std::piecewise_construct,
-           std::forward<mystl::tuple<Args1...>>(first_args),
-           std::forward<mystl::tuple<Args2...>>(second_args),
+           mystl::forward<mystl::tuple<Args1...>>(first_args),
+           mystl::forward<mystl::tuple<Args2...>>(second_args),
            std::make_index_sequence<sizeof...(Args1)>{},
            std::make_index_sequence<sizeof...(Args2)>{}) {}
 template <class T1, class T2>
 template <class Tuple1, class Tuple2, std::size_t... Is1, std::size_t... Is2>
 pair<T1, T2>::pair(std::piecewise_construct_t, Tuple1&& tuple1, Tuple2&& tuple2,
                    std::index_sequence<Is1...>, std::index_sequence<Is2...>)
-    : first(mystl::get<Is1>(std::forward<Tuple1>(tuple1))...),
-      second(mystl::get<Is2>(std::forward<Tuple2>(tuple2))...) {}
+    : first(mystl::get<Is1>(mystl::forward<Tuple1>(tuple1))...),
+      second(mystl::get<Is2>(mystl::forward<Tuple2>(tuple2))...) {}
 }  // namespace mystl
 
 namespace std {

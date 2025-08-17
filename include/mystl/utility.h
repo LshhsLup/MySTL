@@ -9,6 +9,27 @@
 namespace mystl {
 
 //===========================================================
+//======================  move  =============================
+//===========================================================
+template <class T>
+constexpr typename std::remove_reference<T>::type&& move(T&& t) noexcept {
+  return static_cast<typename std::remove_reference<T>::type&&>(t);
+}
+
+//===========================================================
+//======================  forward  ==========================
+//===========================================================
+template <class T>
+constexpr T&& forward(typename std::remove_reference<T>::type& t) noexcept {
+  return static_cast<T&&>(t);
+}
+
+template <class T>
+constexpr T&& forward(typename std::remove_reference<T>::type&& t) noexcept {
+  return static_cast<T&&>(t);
+}
+
+//===========================================================
 //======================    pair    =========================
 //===========================================================
 template <class... Args>
@@ -75,7 +96,7 @@ struct pair {
                     std::is_convertible<U2, T2>::value,
                 int>::type>
   constexpr pair(U1&& x, U2&& y)
-      : first(std::forward<U1>(x)), second(std::forward<U2>(y)) {}
+      : first(mystl::forward<U1>(x)), second(mystl::forward<U2>(y)) {}
 
   template <class U1, class U2,
             typename std::enable_if<std::is_constructible<T1, U1>::value &&
@@ -84,7 +105,7 @@ struct pair {
                                          !std::is_convertible<U2, T2>::value),
                                     char>::type = 0>
   explicit constexpr pair(U1&& x, U2&& y)
-      : first(std::forward<U1>(x)), second(std::forward<U2>(y)) {}
+      : first(mystl::forward<U1>(x)), second(mystl::forward<U2>(y)) {}
 
   template <class U1, class U2,
             typename = typename std::enable_if<
@@ -113,7 +134,7 @@ struct pair {
                     std::is_convertible<U2, T2>::value,
                 int>::type>
   constexpr pair(pair<U1, U2>&& p)
-      : first(std::forward<U1>(p.first)), second(std::forward<U2>(p.second)) {}
+      : first(mystl::forward<U1>(p.first)), second(mystl::forward<U2>(p.second)) {}
 
   template <class U1, class U2,
             typename std::enable_if<std::is_constructible<T1, U1>::value &&
@@ -122,7 +143,7 @@ struct pair {
                                          !std::is_convertible<U2, T2>::value),
                                     char>::type = 0>
   explicit constexpr pair(pair<U1, U2>&& p)
-      : first(std::forward<U1>(p.first)), second(std::forward<U2>(p.second)) {}
+      : first(mystl::forward<U1>(p.first)), second(mystl::forward<U2>(p.second)) {}
 
   // 为了避免循环依赖，将实现放在 tuple.h 中
   template <class... Args1, class... Args2>
@@ -173,8 +194,8 @@ struct pair {
   pair& operator=(pair&& other) noexcept(
       std::is_nothrow_move_assignable<U1>::value&&
           std::is_nothrow_move_assignable<U2>::value) {
-    first = std::forward<first_type>(other.first);
-    second = std::forward<second_type>(other.second);
+    first = mystl::forward<first_type>(other.first);
+    second = mystl::forward<second_type>(other.second);
     return *this;
   }
 
@@ -183,8 +204,8 @@ struct pair {
                 std::is_assignable<T1&, U1&&>::value &&
                 std::is_assignable<T2&, U2&&>::value>::type>
   pair& operator=(pair<U1, U2>&& other) {
-    first = std::forward<U1>(other.first);
-    second = std::forward<U2>(other.second);
+    first = mystl::forward<U1>(other.first);
+    second = mystl::forward<U2>(other.second);
     return *this;
   }
 
@@ -221,7 +242,7 @@ make_pair(T1&& x, T2&& y) {
   using U2 = typename std::decay<T2>::type;
   using V1 = typename unwrap_reference_wrapper<U1>::type;
   using V2 = typename unwrap_reference_wrapper<U2>::type;
-  return pair<U1, U2>(std::forward<T1>(x), std::forward<T2>(y));
+  return pair<U1, U2>(mystl::forward<T1>(x), mystl::forward<T2>(y));
 }
 
 template <class T1, class T2, class U1, class U2>
@@ -273,7 +294,7 @@ struct pair_get<0> {
 
   template <class T1, class T2>
   static constexpr T1&& move_get(pair<T1, T2>&& p) noexcept {
-    return std::forward<T1>(p.first);
+    return mystl::forward<T1>(p.first);
   }
 
   template <class T1, class T2>
@@ -283,7 +304,7 @@ struct pair_get<0> {
 
   template <class T1, class T2>
   static constexpr const T1&& const_move_get(const pair<T1, T2>&& p) noexcept {
-    return std::forward<T1>(p.first);
+    return mystl::forward<T1>(p.first);
   }
 };
 
@@ -296,7 +317,7 @@ struct pair_get<1> {
 
   template <class T1, class T2>
   static constexpr T2&& move_get(pair<T1, T2>&& p) noexcept {
-    return std::forward<T2>(p.second);
+    return mystl::forward<T2>(p.second);
   }
 
   template <class T1, class T2>
@@ -306,7 +327,7 @@ struct pair_get<1> {
 
   template <class T1, class T2>
   static constexpr const T2&& const_move_get(const pair<T1, T2>&& p) noexcept {
-    return std::forward<T2>(p.second);
+    return mystl::forward<T2>(p.second);
   }
 };
 
@@ -326,13 +347,13 @@ template <std::size_t I, class T1, class T2>
 constexpr typename std::tuple_element<I, pair<T1, T2>>::type&& get(
     pair<T1, T2>&& p) noexcept {
   // p 的类型是右值引用，但是 p 有名字，所以它本身是左值，需要重新转换为右值
-  return pair_get<I>::move_get(std::move(p));
+  return pair_get<I>::move_get(mystl::move(p));
 }
 
 template <std::size_t I, class T1, class T2>
 constexpr const typename std::tuple_element<I, pair<T1, T2>>::type&& get(
     const pair<T1, T2>&& p) noexcept {
-  return pair_get<I>::const_move_get(std::move(p));
+  return pair_get<I>::const_move_get(mystl::move(p));
 }
 
 template <class T1, class T2>
@@ -347,12 +368,12 @@ constexpr const T1& get(const pair<T1, T2>& p) noexcept {
 
 template <class T1, class T2>
 constexpr T1&& get(pair<T1, T2>&& p) noexcept {
-  return std::move(p.first);
+  return mystl::move(p.first);
 }
 
 template <class T1, class T2>
 constexpr const T1&& get(const pair<T1, T2>&& p) noexcept {
-  return std::move(p.first);
+  return mystl::move(p.first);
 }
 
 template <class T1, class T2>
@@ -367,12 +388,12 @@ constexpr const T1& get(const pair<T2, T1>& p) noexcept {
 
 template <class T1, class T2>
 constexpr T1&& get(pair<T2, T1>&& p) noexcept {
-  return std::move(p.second);
+  return mystl::move(p.second);
 }
 
 template <class T1, class T2>
 constexpr const T1&& get(const pair<T2, T1>&& p) noexcept {
-  return std::move(p.second);
+  return mystl::move(p.second);
 }
 
 }  // namespace mystl
