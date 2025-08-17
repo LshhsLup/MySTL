@@ -34,6 +34,13 @@ struct nonsuch {
   ~nonsuch() = delete;
 };
 
+struct nonsuch_move {
+  nonsuch_move() = delete;
+  nonsuch_move(const nonsuch&) = delete;
+  nonsuch_move& operator=(const nonsuch&) = delete;
+  ~nonsuch_move() = delete;
+};
+
 // C++17 可用折叠表达式代替，简洁又方便
 // is_all_true: 判断一个模板 Trait 对应的类型是否全为 true
 // 对于一堆类型 Types, 判断 Trait<T> ?= true

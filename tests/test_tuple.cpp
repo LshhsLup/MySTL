@@ -6,6 +6,28 @@
 #include "utils/test_types.h"
 
 using namespace mystl::test;
+struct test_map {
+  std::vector<mystl::pair<int, std::string>> data{};
+  template <class... KeyArgs, class... ValueArgs>
+  void emplace(std::piecewise_construct_t, mystl::tuple<KeyArgs...>&& key_tuple,
+               mystl::tuple<ValueArgs...>&& value_tuple) {
+    data.push_back(mystl::pair<int, std::string>(
+        std::piecewise_construct,
+        std::forward<mystl::tuple<KeyArgs...>>(key_tuple),
+        std::forward<mystl::tuple<ValueArgs...>>(value_tuple)));
+  }
+
+  size_t size() const { return data.size(); }
+
+  const std::string& at(int key) const {
+    for (const auto& item : data) {
+      if (item.first == key) {
+        return item.second;
+      }
+    }
+    throw std::out_of_range("Key not found in test_map");
+  }
+};
 
 TEST(TupleTest, DefaultConstructors) {
   // 编译出错
@@ -622,8 +644,7 @@ TEST(TupleTest, ExampleTest) {
   }
 
   {
-    std::map<int, std::string> m;
-
+    test_map m;
     // This relies on the map's emplace correctly using the tuples we provide.
     m.emplace(std::piecewise_construct, mystl::forward_as_tuple(6),
               mystl::forward_as_tuple(9, 'g'));

@@ -74,9 +74,33 @@ struct TupleLeaf {
 
   constexpr const T& get() const& noexcept { return value; }
 
-  constexpr T&& get() && noexcept { return std::move(value); }
+  /*
+   * FIX: 将 std::move(value) 修改为 std::forward<T>(value)。
+   *
+   * REASON: 当模板参数 T 本身是引用类型（例如 int&，常见于 mystl::tie 创建的 tuple）时，
+   * `std::move` 会导致编译错误。
+   *
+   * 以 T = int& 为例来分析问题：
+   * 1. 函数返回类型：T&& 经过引用折叠 (int& &&) 变为 int&。所以函数期望返回一个左值引用。
+   * 2. 成员变量类型：`value` 的类型是 T，即 int&。
+   * 3. `std::move(value)` 的结果：`std::move` 会无条件地将 `value` 转换为右值引用，
+   *    其结果表达式的类型是 `std::remove_reference_t<int&>&&`，即 `int&&`。
+   * 4. 产生冲突：函数试图返回一个类型为 `int&&` 的右值，但其声明的返回类型却是 `int&`。
+   *    将一个右值绑定到一个非 const 左值引用是不允许的，因此编译器报错。
+   *
+   * SOLUTION: `std::forward<T>` 是一个条件转换。
+   * - 当 T 是引用类型（如 int&）时，`std::forward<int&>(value)` 会返回一个左值引用 `int&`。
+   * - 当 T 是值类型（如 int）时，`std::forward<int>(value)` 会返回一个右值引用 `int&&`。
+   *
+   * 这完美地匹配了函数返回类型在不同 T 的情况下的需求，实现了正确的完美转发。
+   */
+  // constexpr T&& get() && noexcept { return std::move(value); }
+  // constexpr const T&& get() const&& noexcept { return std::move(value); }
+  constexpr T&& get() && noexcept { return std::forward<T>(value); }
 
-  constexpr const T&& get() const&& noexcept { return std::move(value); }
+  constexpr const T&& get() const&& noexcept {
+    return std::forward<const T>(value);
+  }
 };
 
 template <class IndexSeqence, class... Types>
@@ -242,27 +266,49 @@ class tuple
   //   assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
   //   return *this;
   // }
-  template <bool B = mystl::is_all_true_v<std::is_copy_assignable, Types...>,
-            typename std::enable_if_t<B, int> = 0>
-  tuple& operator=(const tuple& other) {
+  tuple& operator=(typename std::conditional<
+                   mystl::is_all_true_v<std::is_copy_assignable, Types...>,
+                   const tuple&, const nonsuch&>::type other) {
     assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
 
-  template <bool B = mystl::is_all_true_v<std::is_copy_assignable, Types...>,
-            typename std::enable_if_t<!B, int> = 0>
-  tuple& operator=(const tuple& other) = delete;
-
-  template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
-            typename std::enable_if_t<B, int> = 0>
-  tuple& operator=(tuple&& other) {
+  tuple& operator=(
+      typename std::conditional<
+          mystl::is_all_true_v<std::is_move_assignable, Types...>, tuple&&,
+          const nonsuch_move&>::type
+          other) noexcept(mystl::is_all_true_v<std::is_nothrow_move_assignable,
+                                               Types...>) {
     assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
     return *this;
   }
+  /*
+   * 为了解决上面的问题，下面的修改还是有问题。
+   * 看似解决了重载决议的问题，但是由于声明了默认的移动构造函数，编译器不会生成赋值运算符的函数
+   * operator=() = delete; 而模版的特殊成员函数不算特殊成员函数，在调用赋值运算时候，编译器
+   * 首先找到这个删除的函数，然后报错。因此修改还是按照上面的思路在参数里面做 SFINAE。
+  */
+  // template <bool B = mystl::is_all_true_v<std::is_copy_assignable, Types...>,
+  //           typename std::enable_if_t<B, int> = 0>
+  // tuple& operator=(const tuple& other) {
+  //   assign_from(other, std::make_index_sequence<sizeof...(Types)>{});
+  //   return *this;
+  // }
 
-  template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
-            typename std::enable_if_t<!B, int> = 0>
-  tuple& operator=(tuple&& other) = delete;
+  // template <bool B = mystl::is_all_true_v<std::is_copy_assignable, Types...>,
+  //           typename std::enable_if_t<!B, int> = 0>
+  // tuple& operator=(const tuple& other) = delete;
+
+  // template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
+  //           typename std::enable_if_t<B, int> = 0>
+  // tuple& operator=(tuple&& other) {
+  //   assign_from(std::move(other), std::make_index_sequence<sizeof...(Types)>{});
+  //   return *this;
+  // }
+
+  // template <bool B = mystl::is_all_true_v<std::is_move_assignable, Types...>,
+  //           typename std::enable_if_t<!B, int> = 0>
+  // tuple& operator=(tuple&& other) = delete;
 
   template <class... UTypes,
             typename std::enable_if<
@@ -647,6 +693,23 @@ constexpr const T&& get(const mystl::tuple<Types...>&& t) noexcept {
       index, typename std::tuple_element<index, mystl::tuple<Types...>>::type>;
   return static_cast<const LeafType&&>(t).get();
 }
+
+template <class T1, class T2>
+template <class... Args1, class... Args2>
+pair<T1, T2>::pair(std::piecewise_construct_t,
+                   mystl::tuple<Args1...> first_args,
+                   mystl::tuple<Args2...> second_args)
+    : pair(std::piecewise_construct,
+           std::forward<mystl::tuple<Args1...>>(first_args),
+           std::forward<mystl::tuple<Args2...>>(second_args),
+           std::make_index_sequence<sizeof...(Args1)>{},
+           std::make_index_sequence<sizeof...(Args2)>{}) {}
+template <class T1, class T2>
+template <class Tuple1, class Tuple2, std::size_t... Is1, std::size_t... Is2>
+pair<T1, T2>::pair(std::piecewise_construct_t, Tuple1&& tuple1, Tuple2&& tuple2,
+                   std::index_sequence<Is1...>, std::index_sequence<Is2...>)
+    : first(mystl::get<Is1>(std::forward<Tuple1>(tuple1))...),
+      second(mystl::get<Is2>(std::forward<Tuple2>(tuple2))...) {}
 }  // namespace mystl
 
 namespace std {
