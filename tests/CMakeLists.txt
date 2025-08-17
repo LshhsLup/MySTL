@@ -34,6 +34,7 @@ endfunction()
 set(MYSTL_TESTS
     test_pair.cpp
     test_tuple.cpp
+    test_array.cpp
 )
 
 foreach(test_file ${MYSTL_TESTS})
