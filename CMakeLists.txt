@@ -25,3 +25,19 @@ add_subdirectory(3rdparty/googletest)
 # 现在可以安全地添加 tests 目录了, 因为里面的 CMake 文件
 # 需要 gtest_main 等 target, 而这些 target 刚刚已经被定义
 add_subdirectory(tests)
+
+
+# ---  性能测试 Benchmark 部分 ---
+option(BUILD_BENCHMARKS "Build the benchmarks" ON)
+
+if(BUILD_BENCHMARKS)
+    message(STATUS "Benchmarks are enabled. Building now.")
+
+    # 1. 集成 Google Benchmark (它现在是 submodule)
+    add_subdirectory(3rdparty/benchmark)
+
+    # 2. 添加 benchmark 子目录
+    add_subdirectory(benchmark)
+else()
+    message(STATUS "Benchmarks are disabled.")
+endif()
