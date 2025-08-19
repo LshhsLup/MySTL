@@ -1,8 +1,8 @@
-#include "gtest/gtest.h"
-#include "mystl/array.h" 
+#include <memory>   // for std::unique_ptr
+#include <numeric>  // for std::accumulate
 #include <string>
-#include <numeric> // for std::accumulate
-#include <memory>  // for std::unique_ptr
+#include "gtest/gtest.h"
+#include "mystl/array.h"
 
 // --- 测试 mystl::array ---
 
@@ -27,7 +27,7 @@ TEST(ArrayTest, ConstructionAndInitialization) {
   EXPECT_EQ(a4[0], 1);
   EXPECT_EQ(a4[1], 2);
   EXPECT_EQ(a4[2], 3);
-  EXPECT_EQ(a4[3], 0); // 值初始化
+  EXPECT_EQ(a4[3], 0);  // 值初始化
   EXPECT_EQ(a4[4], 0);
 }
 
@@ -90,14 +90,14 @@ TEST(ArrayTest, Iterators) {
   EXPECT_EQ(sum, 15);
   sum = std::accumulate(arr.cbegin(), arr.cend(), 0);
   EXPECT_EQ(sum, 15);
-  
+
   // 2. rbegin(), rend() 和 crbegin(), crend()
   std::string s;
   for (auto it = arr.rbegin(); it != arr.rend(); ++it) {
     s += std::to_string(*it);
   }
   EXPECT_EQ(s, "54321");
-  
+
   s.clear();
   for (auto it = carr.crbegin(); it != carr.crend(); ++it) {
     s += std::to_string(*it);
@@ -123,13 +123,13 @@ TEST(ArrayTest, Modifiers) {
   // 2. swap()
   mystl::array<std::string, 2> a2 = {"A", "B"};
   mystl::array<std::string, 2> a3 = {"C", "D"};
-  
+
   a2.swap(a3);
   EXPECT_EQ(a2[0], "C");
   EXPECT_EQ(a2[1], "D");
   EXPECT_EQ(a3[0], "A");
   EXPECT_EQ(a3[1], "B");
-  
+
   // 3. 非成员 swap()
   std::swap(a2, a3);
   EXPECT_EQ(a2[0], "A");
@@ -176,26 +176,26 @@ TEST(ArrayTest, Get) {
 
   // 3. get from rvalue array
   EXPECT_EQ(mystl::get<0>(mystl::array<int, 1>{99}), 99);
-  
+
   // 4. get rvalue from rvalue array (测试移动语义)
   mystl::array<std::unique_ptr<int>, 1> ptr_arr;
   ptr_arr[0] = std::make_unique<int>(500);
-  
+
   std::unique_ptr<int> moved_ptr = mystl::get<0>(std::move(ptr_arr));
   EXPECT_NE(moved_ptr, nullptr);
   EXPECT_EQ(*moved_ptr, 500);
-  EXPECT_EQ(ptr_arr[0], nullptr); // 原始 array 中的资源已被移走
+  EXPECT_EQ(ptr_arr[0], nullptr);  // 原始 array 中的资源已被移走
 }
 
 TEST(ArrayTest, TupleInterface) {
   // 这个测试用例的目的是验证 std 命名空间下的特化是否正确
   // 只要能编译通过，就证明特化是有效的
   using MyArray = mystl::array<int, 5>;
-  
+
   // 1. 测试 std::tuple_size
-  static_assert(std::tuple_size<MyArray>::value == 5, 
+  static_assert(std::tuple_size<MyArray>::value == 5,
                 "tuple_size specialization failed");
-  
+
   // 2. 测试 std::tuple_element
   static_assert(std::is_same<std::tuple_element<0, MyArray>::type, int>::value,
                 "tuple_element specialization failed for index 0");
