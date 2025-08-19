@@ -5,6 +5,7 @@
 #include <cstddef>   // for std::size_t std::ptrdiff_t
 #include <exception>
 #include <type_traits>  // for std::true_type
+#include "mystl/utility.h"
 
 namespace mystl {
 /*
@@ -52,8 +53,8 @@ struct allocator {
 #if defined(__cpp_aligned_new)
     //c++17
     if (alignment > max_align) {
-      std::align_val_t __al = std::align_val_t(alignof(_Tp));
-      return static_cast<_Tp*>(::operator new(__n * sizeof(_Tp), __al));
+      std::align_val_t __al = std::align_val_t(alignof(T));
+      return static_cast<T*>(::operator new(n * sizeof(T), __al));
     }
 #endif
     // not support c++17, select platform API
@@ -104,15 +105,79 @@ struct allocator {
           aligned_addr_val +
           (alignment - (aligned_addr_val % alignment)) % alignment;
 
-      T* aligned_ptr = reinterpret_cast<T*>(aligned_addr_val);
+      void* aligned_ptr = reinterpret_cast<void*>(aligned_addr_val);
 
       // 在 aligned_ptr 前面存放 raw_memory
       void** raw_ptr = reinterpret_cast<void**>(aligned_ptr) - 1;
       *raw_ptr = raw_memory;
 
-      return aligned_ptr;
+      return static_cast<T*>(aligned_ptr);
     }
     return static_cast<T*>(::operator new(n * sizeof(T)));
+  }
+
+  void deallocate(T* p, std::size_t n) {
+    (void)n;  // maybe unused
+
+    constexpr std::size_t alignment = alignof(T);
+    constexpr std::size_t max_align = alignof(std::max_align_t);
+
+#if defined(__cpp_aligned_new)  // c++17
+    if (alignment > max_align) {
+      ::operator delete(p, std::align_val_t(alignment));
+      return;
+    }
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)  // linux
+    if (alignment > max_align) {
+      std::free(p);
+      return;
+    }
+#endif
+
+#if defined(_MSC_VER)  // windows
+    if (alignment > max_align) {
+      _aligned_free(p);
+      return;
+    }
+#endif  // simulación
+    if (alignment > max_align) {
+      /*
+         * |----- raw_ptr -----|----- user_data -----|
+         * ^                   ^
+         * *raw_ptr_location   p (aligned_ptr)
+         */
+      void** raw_ptr_location = reinterpret_cast<void**>(p) - 1;
+      void* raw_memory = *raw_ptr_location;
+
+      ::operator delete(raw_memory);
+    } else {
+      ::operator delete(p);
+    }
+    return;
+  }
+
+  template <class U, class... Args>
+  void construct(U* p, Args&&... args) {
+    ::new ((void*)p) U(mystl::forward<Args>(args)...);
+  }
+
+  template <class U>
+  void destory(U* p) {
+    p->~U();
+  }
+
+  template <class T1, class T2>
+  friend bool operator==(const allocator<T1>& lhs,
+                         const allocator<T2>& rhs) noexcept {
+    return true;
+  }
+
+  template <class T1, class T2>
+  friend bool operator!=(const allocator<T1>& lhs,
+                         const allocator<T2>& rhs) noexcept {
+    return false;
   }
 };
 }  // namespace mystl
