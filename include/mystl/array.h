@@ -1,7 +1,9 @@
+#ifndef __MYSTL_ARRAY_H__
+#define __MYSTL_ARRAY_H__
+
 #include <array>
 #include <utility>
 
-std::array<int, 10> a;
 namespace mystl {
 template <class T, std::size_t N>
 struct array {
@@ -178,3 +180,5 @@ void swap(mystl::array<T, N>& lhs,
   lhs.swap(rhs);
 }
 }  // namespace std
+
+#endif
