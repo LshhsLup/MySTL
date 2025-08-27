@@ -140,6 +140,7 @@ class vector {
     M_crate_storage(n);
     M_construct();
   }
+
   explicit vector(size_type n, const T& value,
                   const allocator_type& alloc = allocator_type())
       : start(nullptr),
@@ -166,18 +167,50 @@ class vector {
   }
 
   vector(const vector& other) {
-    allocator =
-        std::allocator_traits<Alloc>::select_on_container_copy_construction(
-            other.get_allocator());
+    if (this != &other) {
+      allocator =
+          std::allocator_traits<Alloc>::select_on_container_copy_construction(
+              other.get_allocator());
+      size_type n = other.size();
+      this->M_crate_storage(n);
+      this->M_construct_ranges(other.begin(), other.end());
+    }
   }
 
-  vector(vector&& other) noexcept;
+  vector(vector&& other) noexcept : allocator(mystl::move(other.allocator)) {
+    this->start = other.start;
+    this->finish = other.finish;
+    this->end_of_storage = other.end_of_storage;
+    other.start = nullptr;
+    other.finish = nullptr;
+    other.end_of_storage = nullptr;
+  }
 
-  vector(const vector& other, const allocator_type& alloc);
-  vector(vector&& other, const allocator_type& alloc);
+  vector(const vector& other, const allocator_type& alloc) : allocator(alloc) {
+    if (this != &other) {
+      size_type n = other.size();
+      this->M_crate_storage(n);
+      this->M_construct_ranges(other.begin(), other.end());
+    }
+  }
+
+  vector(vector&& other, const allocator_type& alloc)
+      : allocator(mystl::move(alloc)) {
+    this->start = other.start;
+    this->finish = other.finish;
+    this->end_of_storage = other.end_of_storage;
+    other.start = nullptr;
+    other.finish = nullptr;
+    other.end_of_storage = nullptr;
+  }
 
   vector(std::initializer_list<T> init,
-         const allocator_type& alloc = allocator_type());
+         const allocator_type& alloc = allocator_type())
+      : allocator(alloc) {
+    size_type n = init.size();
+    this->M_crate_storage(n);
+    this->M_construct_ranges(init.begin(), init.end());
+  }
 
   size_type size() const { return finish - start; }
 
