@@ -212,6 +212,48 @@ class vector {
     this->M_construct_ranges(init.begin(), init.end());
   }
 
+  //===================================================================
+  //======================= elements access ===========================
+  //===================================================================
+  reference at(size_type pos) {
+    if(pos >= this->size()) {
+      throw std::out_of_range("at: pos is out of range!") 
+    }
+    return *(start + pos);
+  }
+  const_reference at(size_type pos) const {
+    if(pos >= this->size()) {
+      throw std::out_of_range("at: pos is out of range!") 
+    }
+    return *(start + pos);
+  }
+
+  reference operator[](size_type pos) {
+    // if pos >= size(), ub
+    return *(start + pos);
+  }
+  const_reference operator[](size_type pos) const {
+    return *(start + pos);
+  }
+
+  reference front() {
+    return *start;
+  }
+  const_reference front() const {
+    return *start;
+  }
+
+  reference back() {
+    return *(finish - 1);
+  }
+  const_reference back() const {
+    return *(finish - 1);
+  }
+
+  T* data() {}
+
+  const T* data() {}
+
   size_type size() const { return finish - start; }
 
   allocator_type get_allocator() const { return allocator; }
